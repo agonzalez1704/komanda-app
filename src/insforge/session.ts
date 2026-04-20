@@ -1,53 +1,52 @@
-import { useEffect, useState } from 'react';
-import type { UserSchema } from '@insforge/sdk';
-import { insforge } from './client';
+import { useEffect, useRef, useState } from 'react';
+import { insforge, bootstrapSession } from './client';
 
-export type Session = {
-  userId: string;
-  email: string;
-  accessToken: string;
-} | null;
-
-type SessionState =
+export type SessionState =
   | { status: 'loading' }
   | { status: 'signed-out' }
-  | { status: 'signed-in'; session: NonNullable<Session> };
+  | { status: 'signed-in'; session: { userId: string; email: string } };
 
 /**
- * Convert a raw user from getCurrentUser into a typed SessionState.
- * The SDK's Auth class does not expose getSession() or onAuthStateChange();
- * session state is derived from getCurrentUser() on mount.
+ * Reads and validates the current auth state from the SDK.
+ * Must be called after `bootstrapSession()` has restored the token.
+ *
+ * Returns a stable `refreshSession` function that sign-in / sign-out screens
+ * can call to force a re-check without unmounting the hook.
  */
-function toState(user: UserSchema | null | undefined, accessToken?: string | null): SessionState {
-  if (!user?.id || !user?.email || !accessToken) {
-    return { status: 'signed-out' };
-  }
-  return {
-    status: 'signed-in',
-    session: { userId: user.id, email: user.email, accessToken },
-  };
-}
-
-export function useSession(): SessionState {
+export function useSession(): SessionState & { refreshSession: () => void } {
   const [state, setState] = useState<SessionState>({ status: 'loading' });
+  const refreshCountRef = useRef(0);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const refreshSession = () => {
+    refreshCountRef.current += 1;
+    setRefreshTick((t) => t + 1);
+  };
 
   useEffect(() => {
     let mounted = true;
 
-    insforge.auth.getCurrentUser().then((res) => {
+    async function checkSession() {
+      await bootstrapSession();
+      const { data, error } = await insforge.auth.getCurrentUser();
       if (!mounted) return;
-      // The SDK stores the access token in the TokenManager (memory-only).
-      // We reach it via the internal HTTP client headers as a fallback.
-      const http = insforge.getHttpClient();
-      const authHeader = http.getHeaders()['Authorization'] ?? http.getHeaders()['authorization'];
-      const accessToken = authHeader?.replace(/^Bearer\s+/i, '') ?? null;
-      setState(toState(res.data?.user, accessToken));
-    });
+      if (error || !data?.user?.id || !data?.user?.email) {
+        setState({ status: 'signed-out' });
+      } else {
+        setState({
+          status: 'signed-in',
+          session: { userId: data.user.id, email: data.user.email },
+        });
+      }
+    }
 
+    checkSession();
     return () => {
       mounted = false;
     };
-  }, []);
+    // refreshTick is intentionally included so callers can trigger a re-check.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTick]);
 
-  return state;
+  return { ...state, refreshSession };
 }
