@@ -30,6 +30,9 @@ export function useSession(): SessionState & { refreshSession: () => void } {
       await bootstrapSession();
       const { data, error } = await insforge.auth.getCurrentUser();
       if (!mounted) return;
+      if (error) {
+        console.warn('[useSession] getCurrentUser error:', error);
+      }
       if (error || !data?.user?.id || !data?.user?.email) {
         setState({ status: 'signed-out' });
       } else {
