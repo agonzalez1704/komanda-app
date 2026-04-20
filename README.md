@@ -1,50 +1,61 @@
-# Welcome to your Expo app 👋
+# komanda-app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Native mobile app for taco-restaurant waiters to take and track orders. Expo (expo-router) + Insforge (Postgres + Auth) directly from the client.
 
-## Get started
+See the design spec: [docs/superpowers/specs/2026-04-18-komanda-app-v1-design.md](docs/superpowers/specs/2026-04-18-komanda-app-v1-design.md).
 
-1. Install dependencies
+## Prerequisites
 
-   ```bash
-   npm install
-   ```
+- Node 20+
+- iOS Simulator (macOS) or Android Emulator
+- Access to the Komanda Insforge project (org id recorded in the sibling `komanda` repo at `.insforge/project.json`)
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+pnpm install
+cp .env.example .env
+# get the anon key from the sibling komanda repo
+npx @insforge/cli --project ../komanda secrets get ANON_KEY
+# paste it into .env as EXPO_PUBLIC_INSFORGE_ANON_KEY
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Run
 
-## Learn more
+```bash
+npx expo start --ios     # or --android
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Test
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+pnpm test                # unit + component tests via jest-expo
+```
 
-## Join the community
+## Apply SQL migrations
 
-Join our community of developers creating universal apps.
+Migrations live in `supabase-sql/` numbered in order. Apply in order on a fresh project:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+cd ../komanda
+npx @insforge/cli db import ../komanda-app/supabase-sql/0001_schema.sql
+npx @insforge/cli db import ../komanda-app/supabase-sql/0002_rls.sql
+npx @insforge/cli db import ../komanda-app/supabase-sql/0003_rpc_redeem_invitation.sql
+npx @insforge/cli db import ../komanda-app/supabase-sql/0004_rpc_next_komanda_number.sql
+```
+
+## Structure
+
+- `app/` — expo-router routes (`(auth)` + `(app)` groups)
+- `src/insforge/` — Insforge client, session hook, row schemas, query helpers
+- `src/offline/` — TanStack Query provider + mutation queue + NetInfo hook
+- `src/components/` — shared UI
+- `supabase-sql/` — SQL migrations for Insforge
+- `tests/` — Jest tests
+- `docs/superpowers/` — specs + plans
+
+## Current status (Plan A — Foundation)
+
+Shipped: Insforge schema + RLS, email/password sign-in, invite-redemption sign-up, auth-and-membership gate, offline banner, queued-mutation primitives, menu read hooks.
+
+Pending: Plan B (waiter flow — komanda CRUD, add-item, close + PDF receipt, Maestro E2E).
