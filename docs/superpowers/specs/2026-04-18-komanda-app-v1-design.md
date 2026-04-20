@@ -10,7 +10,7 @@
 ### Goals
 - Replace paper tickets with a native app waiters can use on their phones.
 - Let any signed-in org member open a komanda, add items (product + variant + quantity + modifiers), track its status, and close it with a PDF receipt.
-- Support multi-tenant orgs via Clerk Organizations.
+- Support multi-tenant orgs via a home-grown `organizations` + `organization_members` model on top of Insforge auth.
 - Work when wifi drops mid-shift.
 
 ### Non-goals (v1)
@@ -28,8 +28,7 @@
 
 ### Stack
 - **Expo 54** + **expo-router 6** (already scaffolded).
-- **Clerk Expo SDK** for auth + Organizations.
-- **Insforge JS client** for Postgres data, authenticated with the Clerk JWT via an Insforge JWT template.
+- **`@insforge/sdk`** for both **auth** and **Postgres data** (single SDK; Insforge handles session + `auth.uid()` in RLS policies).
 - **TanStack Query** for server-state fetching + caching, persisted to AsyncStorage.
 - **Zustand** for transient UI state (current cart being edited).
 - **AsyncStorage** for persisted query cache and the offline mutation queue.
@@ -40,35 +39,61 @@
 Mobile app talks **directly to Insforge**. No Next.js API in between for v1. If shared business logic between mobile and dashboard becomes painful later, we'll promote to a Next.js API gateway; migration is mostly mechanical and does not require rewriting the mobile app.
 
 ### Tenancy
-- Clerk Organizations map 1:1 to tenants.
-- Every Insforge table has `org_id uuid not null` = Clerk organization id.
-- Backend row-level policies enforce `org_id = current_user_org` on every read and write.
-- On the client, the active Clerk org is the implicit scope of all queries.
+- We own the multi-tenant model in our schema (Insforge does not provide org primitives). Tables involved:
+  - `organizations` — one row per restaurant.
+  - `organization_members` — links `auth.users.id` to an organization with a role and display name. Also acts as the app-side profile table.
+  - `invitations` — pending invites issued by admins, redeemed on sign-up.
+- Every business table has `org_id uuid not null`.
+- Backend **RLS policies** enforce `org_id = (SELECT org_id FROM organization_members WHERE auth_user_id = auth.uid())` on every read and write. Helper function is marked `SECURITY DEFINER` to avoid recursive RLS on `organization_members` itself.
+- **v1 constraint: one organization per user.** This keeps the client trivial (no org picker). Multi-org per user is an explicit v1.x follow-up.
 
 ### Auth flow
-- **Admins**: sign up / sign in with email + password via Clerk. Create the org and invite members via the Clerk-hosted flow.
-- **Waiters** (Clerk role `member`): invited by email. Sign in with **email + 6-digit OTP** (passwordless). Rationale: no password to remember during shift changes.
-- On successful sign-in, if the user belongs to multiple orgs, show an org picker before landing on `komandas`.
-- If the user is not yet in any org, show a "Ask your admin to invite you" screen with sign-out.
+- All users — admin or member — sign in with **Insforge email + password** via `insforge.auth.signIn({ email, password })`.
+- **Admin bootstrapping**: the very first admin for an organization is created via the Next.js dashboard (out of scope for this spec). Admins can also be created by inviting with `role='admin'`.
+- **Waiter onboarding via invitation**:
+  1. Admin enters email + role in the Next.js dashboard (or — v1.x — in a future mobile admin screen). Server inserts an `invitations` row with a random `token`, `expires_at` (7 days), and `role`.
+  2. Admin sends the link to the waiter out-of-band (WhatsApp, text, shout across the counter). Link format: `komanda://invite?token=<token>` (deep link handled by expo-router) + a web fallback.
+  3. Waiter opens the link on the mobile app → `sign-up` screen prefilled with the invited email and the token in a hidden field.
+  4. Waiter enters a password + display name. App calls `insforge.auth.signUp({ email, password, name })`. On success, app calls an RPC `redeem_invitation(token)` which:
+     - Verifies token + email match, not expired, not already accepted.
+     - Inserts `organization_members` row linking `auth.uid()` to the org with the invited role + display name.
+     - Marks the invitation `accepted_at = now()`.
+- On sign-in, the app calls `GET organization_members WHERE auth_user_id = auth.uid()` to resolve the user's org and role.
+- If the user has no membership row (edge case: their invite was revoked or they signed up without an invite), show a "Ask your admin to invite you" screen with sign-out.
+- Session is persisted by `@insforge/sdk` to AsyncStorage automatically; re-opening the app resumes the session.
 
 ---
 
 ## 3. Data Model
 
-All IDs are UUIDs except Clerk-owned IDs (`users.id`, `organizations.id`, which are Clerk-provided strings). Prices are stored as integer cents.
+All IDs are UUIDs. Auth identity is owned by Insforge in `auth.users(id)`; we reference it with `auth_user_id`. Prices are stored as integer cents.
 
 ```
 organizations
-  id            pk          (= Clerk org id, text)
+  id            pk uuid default gen_random_uuid()
   name          text
-  created_at    timestamptz
+  created_at    timestamptz default now()
 
-users
-  id            pk          (= Clerk user id, text)
-  org_id        fk -> organizations.id
-  role          enum('admin', 'member')    -- mirrored from Clerk org roles
-  display_name  text
-  created_at    timestamptz
+organization_members
+  id               pk uuid default gen_random_uuid()
+  auth_user_id     uuid not null references auth.users(id) on delete cascade
+  org_id           uuid not null references organizations(id) on delete cascade
+  role             text not null check (role in ('admin', 'member'))
+  display_name     text not null
+  created_at       timestamptz default now()
+  unique(auth_user_id)        -- v1 constraint: one org per user
+  unique(auth_user_id, org_id)
+
+invitations
+  id                       pk uuid default gen_random_uuid()
+  org_id                   uuid not null references organizations(id) on delete cascade
+  email                    citext not null
+  role                     text not null check (role in ('admin', 'member'))
+  token                    text not null unique      -- random 32+ char
+  expires_at               timestamptz not null
+  accepted_at              timestamptz null
+  created_by_auth_user_id  uuid not null references auth.users(id)
+  created_at               timestamptz default now()
 
 products
   id            pk uuid
@@ -95,18 +120,18 @@ modifiers
   active        boolean default true
 
 komandas
-  id                   pk uuid
-  org_id               fk -> organizations.id
-  number               text null            -- e.g., "komanda-20260418-007"; null until synced
-  display_name         text null            -- optional waiter rename, e.g., "Table 5"
-  status               enum('open', 'pending', 'served', 'closed') default 'open'
-  opened_by_user_id    fk -> users.id
-  opened_at            timestamptz
-  closed_at            timestamptz null
-  closed_by_user_id    fk -> users.id null
-  payment_method       enum('cash', 'card', 'transfer') null
-  total_cents          integer null         -- snapshot at close
-  local_uuid           uuid                 -- stable client-generated id for offline-first creates
+  id                        pk uuid
+  org_id                    fk -> organizations.id
+  number                    text null            -- e.g., "komanda-20260418-007"; null until synced
+  display_name              text null            -- optional waiter rename, e.g., "Table 5"
+  status                    text not null default 'open' check (status in ('open','pending','served','closed'))
+  opened_by_auth_user_id    uuid not null references auth.users(id)
+  opened_at                 timestamptz
+  closed_at                 timestamptz null
+  closed_by_auth_user_id    uuid null references auth.users(id)
+  payment_method            text null check (payment_method in ('cash','card','transfer'))
+  total_cents               integer null         -- snapshot at close
+  local_uuid                uuid                 -- stable client-generated id for offline-first creates
 
 komanda_items
   id                        pk uuid
@@ -169,10 +194,11 @@ Format: `komanda-YYYYMMDD-NNN` (e.g., `komanda-20260418-007`).
 ```
 app/
   (auth)/
-    sign-in.tsx              -- email + password (admin) or email + OTP (waiter)
-    select-org.tsx           -- when user belongs to multiple orgs
+    sign-in.tsx              -- email + password
+    sign-up.tsx              -- invite-redemption: prefilled email, token from deep link
+    no-org.tsx               -- "Ask your admin to invite you" edge case
   (app)/
-    _layout.tsx              -- requires signed-in + active org; bottom tab bar
+    _layout.tsx              -- requires signed-in + membership; bottom tab bar
     komandas/
       index.tsx              -- LIST
       new.tsx                -- creates komanda, redirects to [id]
@@ -180,9 +206,11 @@ app/
         index.tsx            -- DETAIL
         add-item.tsx         -- product picker → variant → qty → modifiers/note
         close.tsx            -- payment method + confirm + share receipt
-    settings.tsx             -- profile, switch org, sign out
-  _layout.tsx                -- ClerkProvider + QueryClientProvider + offline boot
+    settings.tsx             -- profile, sign out
+  _layout.tsx                -- InsforgeProvider + QueryClientProvider + offline boot
 ```
+
+**Deep link for invites:** scheme registered in `app.json` so links like `komanda://invite?token=<token>` (and an https universal link fallback) land on `sign-up.tsx` with the token prefilled.
 
 ### Komandas list (`komandas/index.tsx`)
 - Shows **today's komandas** by default, sorted newest first.
@@ -194,7 +222,7 @@ app/
 ### New komanda (`komandas/new.tsx`)
 - Single action: creates a komanda row with:
   - `local_uuid` generated client-side
-  - `opened_by_user_id` = current user
+  - `opened_by_auth_user_id` = `auth.uid()` of the current user
   - `opened_at` = local time (reconciled on sync)
   - `status = 'open'`
   - `number` = null (server assigns)
@@ -228,7 +256,7 @@ app/
 - Payment method chips: **Cash / Card / Transfer**. Single-select, required.
 - Primary button: **Confirm & share receipt**.
 - On tap:
-  1. Locally marks komanda `closed`, sets `closed_at`, `closed_by_user_id`, `payment_method`, snapshots `total_cents`.
+  1. Locally marks komanda `closed`, sets `closed_at`, `closed_by_auth_user_id`, `payment_method`, snapshots `total_cents`.
   2. Enqueues `close_komanda` mutation.
   3. Renders PDF from local data.
   4. Opens native share sheet (expo-sharing).
@@ -240,7 +268,7 @@ app/
 - Sign out.
 
 ### Role gating
-- Clerk `admin` role exists but grants no extra mobile UI in v1. Every signed-in org member uses the app as a waiter.
+- `organization_members.role` of `admin` vs `member` grants no extra mobile UI in v1. Every signed-in org member uses the app as a waiter; admin-only actions (menu CRUD, issuing invites) happen on the Next.js dashboard.
 
 ---
 
@@ -300,7 +328,7 @@ app/
 
 ### What is NOT offline
 - Menu data changes (happen on Next.js dashboard; mobile is read-only).
-- Clerk sign-in (requires network).
+- Insforge sign-in / sign-up / invite redemption (all require network).
 
 ---
 
@@ -335,9 +363,10 @@ Pago: Efectivo
 ## 9. Error Handling & Edge Cases
 
 ### Auth / org
-- User not in any org → "Ask your admin to invite you" screen with sign-out.
-- Multi-org user → `select-org` before `komandas`.
-- Clerk session expires → silent refresh; on failure, sticky banner "Please sign in again" but cached komandas remain visible.
+- Signed-in user without an `organization_members` row → `no-org` screen with sign-out.
+- Multi-org user → out of scope for v1 (schema unique constraint prevents it).
+- Invite token invalid / expired / already redeemed → sign-up screen shows an inline error + a "Contact your admin" link.
+- Insforge session expires → SDK refreshes silently; on refresh failure, sticky banner "Please sign in again" but cached komandas remain visible.
 
 ### Network / sync
 - Mutation permanently fails after N retries (configurable, default 5) → komanda or item gets a red error badge. Tapping shows error + **Retry** / **Discard**. Writes are never silently dropped.
@@ -372,14 +401,14 @@ Pago: Efectivo
 ### Integration
 - TanStack Query + AsyncStorage persistence (queries rehydrate while offline).
 - Mutation queue: enqueue offline, drain in order online, handle server rejections.
-- Clerk: mock `useAuth` / `useOrganization` at a boundary to simulate signed-in/out + role.
+- Insforge SDK: mock `insforge.auth` + `insforge.database` at a single boundary module to simulate signed-in/out + membership lookups.
 
 ### End-to-end (Maestro)
 - Sign in → create komanda → add 2 items → close with cash → receipt shared.
 - Go offline → create komanda → add items → come back online → verify real number assigned.
 
 ### Manual QA (v1 sign-off)
-- Real device iOS + Android, real Insforge, real Clerk org.
+- Real device iOS + Android, real Insforge project, real org + invite flow.
 - Wifi toggling to simulate shop conditions.
 - Two devices concurrently creating komandas → distinct numbers assigned.
 - Menu change on Next.js dashboard propagates to mobile after refresh; historical komandas unchanged.
@@ -403,6 +432,9 @@ Pago: Efectivo
 - Tax reporting and end-of-day Z reports.
 - Multi-language UI toggle (English-only in v1; receipt is Spanish).
 - Per-device "daily shift PIN" fast re-auth.
+- Multi-org per user (unique constraint on `organization_members.auth_user_id` prevents it in v1).
+- OAuth sign-in (Insforge supports Google/GitHub; not in v1).
+- In-app admin-side invite creation (v1 admins issue invites from the Next.js dashboard).
 
 ---
 
