@@ -45,3 +45,6 @@ app-example
 
 # git worktrees
 .worktrees/
+
+# Claude Code local settings
+.claude/
