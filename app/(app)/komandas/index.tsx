@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { fetchKomandasForDate, fetchItemsForKomanda } from '@/insforge/queries/komandas';
 import { KomandaCard } from '@/components/KomandaCard';
+import { StuckMutationsBanner } from '@/components/StuckMutationsBanner';
 import { calculateTotal } from '@/domain/total';
 
 export default function KomandasList() {
@@ -17,6 +18,7 @@ export default function KomandasList() {
 
   return (
     <View style={styles.root}>
+      <StuckMutationsBanner />
       <View style={styles.topBar}>
         <Text style={styles.topTitle}>Komandas</Text>
         <Link href="/(app)/settings" style={styles.settingsLink}>Settings</Link>

@@ -15,6 +15,8 @@ import { displayIdentifier } from '@/domain/komandaNumber';
 import { StatusPill } from '@/components/StatusPill';
 import { useUpdateStatus } from '@/mutations/useUpdateStatus';
 import { useRemoveItem } from '@/mutations/useRemoveItem';
+import { shareReceipt } from '@/receipt/shareReceipt';
+import { fetchMyMembership } from '@/insforge/queries/membership';
 import type { KomandaStatusT } from '@/insforge/schemas';
 
 const STATUSES: KomandaStatusT[] = ['open', 'pending', 'served', 'closed'];
@@ -24,6 +26,7 @@ export default function KomandaDetail() {
   const router = useRouter();
   const komanda = useQuery({ queryKey: ['komanda', id], queryFn: () => fetchKomandaById(id!), enabled: !!id });
   const items = useQuery({ queryKey: ['komanda', id, 'items'], queryFn: () => fetchItemsForKomanda(id!), enabled: !!id });
+  const membership = useQuery({ queryKey: ['membership'], queryFn: fetchMyMembership });
   const updateStatus = useUpdateStatus();
   const removeItem = useRemoveItem(id!);
 
@@ -32,6 +35,26 @@ export default function KomandaDetail() {
 
   const closed = komanda.data.status === 'closed';
   const total = calculateTotal(items.data ?? []);
+
+  async function reshare() {
+    if (!komanda.data || !membership.data || komanda.data.payment_method === null) return;
+    await shareReceipt({
+      orgName: membership.data.organization.name,
+      identifier: displayIdentifier(komanda.data),
+      waiterName: membership.data.display_name,
+      openedAtIso: komanda.data.opened_at,
+      items: (items.data ?? []).map((it) => ({
+        quantity: it.quantity,
+        product_name_snapshot: it.product_name_snapshot,
+        variant_name_snapshot: it.variant_name_snapshot,
+        unit_price_cents: it.unit_price_cents,
+        modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
+        note_text: it.note_text,
+      })),
+      totalCents: komanda.data.total_cents ?? 0,
+      paymentMethod: komanda.data.payment_method,
+    });
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.root}>
@@ -109,7 +132,11 @@ export default function KomandaDetail() {
             </TouchableOpacity>
           </Link>
         </>
-      ) : null}
+      ) : (
+        <TouchableOpacity onPress={reshare} style={styles.primary}>
+          <Text style={styles.primaryText}>Share receipt again</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
