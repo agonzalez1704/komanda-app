@@ -17,6 +17,10 @@ export default function KomandasList() {
 
   return (
     <View style={styles.root}>
+      <View style={styles.topBar}>
+        <Text style={styles.topTitle}>Komandas</Text>
+        <Link href="/(app)/settings" style={styles.settingsLink}>Settings</Link>
+      </View>
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 24 }} />
       ) : (
@@ -67,6 +71,9 @@ function KomandaRow({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f4f4f5' },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: 'white' },
+  topTitle: { fontSize: 22, fontWeight: '700' },
+  settingsLink: { color: '#2563eb', fontSize: 14 },
   list: { padding: 16, paddingBottom: 96 },
   empty: { textAlign: 'center', color: '#737373', marginTop: 48 },
   fab: {
