@@ -63,8 +63,30 @@ npx @insforge/cli db import ../komanda-app/supabase-sql/0004_rpc_next_komanda_nu
 - `tests/` — Jest tests
 - `docs/superpowers/` — specs + plans
 
-## Current status (Plan A — Foundation)
+## Current status (v1)
 
-Shipped: Insforge schema + RLS, email/password sign-in, invite-redemption sign-up, auth-and-membership gate, offline banner, queued-mutation primitives, menu read hooks.
+Shipped:
+- Sign in / invite-redeem / sign out.
+- Komandas list (today, pull-to-refresh), new, detail, add item, close & charge, share PDF receipt.
+- Offline: queued writes, local→server id mapping, queue drain on reconnect.
+- Multi-tenant isolation via Insforge RLS.
+- Jest + Maestro test suites.
 
-Pending: Plan B (waiter flow — komanda CRUD, add-item, close + PDF receipt, Maestro E2E).
+Deliberately deferred (see spec §11):
+- Menu CRUD on mobile (lives on Next.js dashboard).
+- Tap-to-pay, thermal printers, tips, split payment, table map.
+- Kitchen display.
+- Multi-org per user, OAuth sign-in.
+
+## Final manual QA checklist
+
+Before calling v1 done, confirm on a real device + real Insforge project:
+
+- [ ] Fresh sign-up via invite works end to end.
+- [ ] Two concurrently-creating waiters get distinct komanda numbers.
+- [ ] Airplane-mode create → items → close → receipt share all work; after reconnect, the komanda shows a real `komanda-YYYYMMDD-NNN` number.
+- [ ] Deactivating a product on the dashboard does not alter historical komandas (snapshots preserved).
+- [ ] Force-quit + relaunch restores session, last list, cached menu.
+- [ ] `pnpm test` — all green.
+- [ ] `pnpm exec tsc --noEmit` — no type errors.
+- [ ] Maestro — both flows pass.
