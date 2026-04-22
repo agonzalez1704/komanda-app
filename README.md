@@ -32,6 +32,15 @@ npx expo start --ios     # or --android
 pnpm test                # unit + component tests via jest-expo
 ```
 
+End-to-end tests run through [Maestro](https://maestro.mobile.dev):
+
+```bash
+maestro test .maestro/sign-in-create-close.yaml
+maestro test .maestro/offline-create-sync.yaml
+```
+
+Requires a seeded user `waiter@example.com` / `correcthorsebatterystaple` with membership in a test org that contains a product named `Taco al pastor`.
+
 ## Apply SQL migrations
 
 Migrations live in `supabase-sql/` numbered in order. Apply in order on a fresh project:
