@@ -45,7 +45,7 @@ export default function Close() {
         closed_at,
       });
       await shareReceipt({
-        orgName: 'Komanda',
+        orgName: membership.data.organization.name,
         identifier: displayIdentifier(komanda.data),
         waiterName: membership.data.display_name,
         openedAtIso: komanda.data.opened_at,

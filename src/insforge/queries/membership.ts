@@ -1,14 +1,19 @@
+import { z } from 'zod';
 import { insforge } from '@/insforge/client';
-import { OrganizationMemberRow, type OrganizationMemberRowT } from '@/insforge/schemas';
+import { OrganizationMemberRow, OrganizationRow } from '@/insforge/schemas';
 
-export async function fetchMyMembership(): Promise<OrganizationMemberRowT | null> {
+const Joined = OrganizationMemberRow.extend({
+  organization: OrganizationRow,
+});
+export type MembershipWithOrg = z.infer<typeof Joined>;
+
+export async function fetchMyMembership(): Promise<MembershipWithOrg | null> {
   const { data, error } = await insforge.database
     .from('organization_members')
-    .select('*')
+    .select('*, organization:organizations(*)')
     .limit(1)
-    .single();
-
+    .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return OrganizationMemberRow.parse(data);
+  return Joined.parse(data);
 }
