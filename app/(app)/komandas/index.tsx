@@ -1,34 +1,82 @@
+import { useMemo } from 'react';
+import { Link, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fetchProducts } from '@/insforge/queries/menu';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { fetchKomandasForDate, fetchItemsForKomanda } from '@/insforge/queries/komandas';
+import { KomandaCard } from '@/components/KomandaCard';
+import { calculateTotal } from '@/domain/total';
 
-export default function Komandas() {
-  const products = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
+export default function KomandasList() {
+  const router = useRouter();
+  const today = useMemo(() => new Date(), []);
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['komandas', 'today'],
+    queryFn: () => fetchKomandasForDate(today),
+    staleTime: 1000 * 10,
+  });
 
   return (
-    <ScrollView contentContainerStyle={styles.root}>
-      <Text style={styles.header}>Komandas (placeholder)</Text>
-      <Text style={styles.sub}>Menu items loaded from Insforge:</Text>
-      {products.isLoading ? (
-        <ActivityIndicator />
-      ) : products.error ? (
-        <Text style={styles.error}>Error: {(products.error as Error).message}</Text>
+    <View style={styles.root}>
+      {isLoading ? (
+        <ActivityIndicator style={{ marginTop: 24 }} />
       ) : (
-        <View style={{ gap: 4, marginTop: 8 }}>
-          {products.data?.map((p) => (
-            <Text key={p.id}>
-              {p.name} — ${(p.price_cents / 100).toFixed(2)}
-            </Text>
-          )) ?? null}
-        </View>
+        <FlatList
+          data={data ?? []}
+          keyExtractor={(k) => k.id}
+          contentContainerStyle={styles.list}
+          refreshing={isRefetching}
+          onRefresh={refetch}
+          ListEmptyComponent={<Text style={styles.empty}>No komandas yet today.</Text>}
+          renderItem={({ item }) => (
+            <KomandaRow k={item} onPress={() => router.push(`/(app)/komandas/${item.id}`)} />
+          )}
+        />
       )}
-    </ScrollView>
+      <Link href="/(app)/komandas/new" asChild>
+        <TouchableOpacity style={styles.fab}>
+          <Text style={styles.fabText}>+ New komanda</Text>
+        </TouchableOpacity>
+      </Link>
+    </View>
+  );
+}
+
+function KomandaRow({
+  k,
+  onPress,
+}: {
+  k: Parameters<typeof KomandaCard>[0]['k'];
+  onPress: () => void;
+}) {
+  const items = useQuery({
+    queryKey: ['komanda', k.id, 'items'],
+    queryFn: () => fetchItemsForKomanda(k.id),
+    enabled: k.number !== null,
+  });
+  const total = calculateTotal(items.data ?? []);
+  return (
+    <KomandaCard
+      k={k}
+      itemCount={items.data?.length ?? 0}
+      runningTotalCents={total}
+      onPress={onPress}
+      syncedServerSide={k.number !== null}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  root: { padding: 20, gap: 8 },
-  header: { fontSize: 24, fontWeight: '700' },
-  sub: { fontSize: 14, color: '#525252' },
-  error: { color: '#dc2626' },
+  root: { flex: 1, backgroundColor: '#f4f4f5' },
+  list: { padding: 16, paddingBottom: 96 },
+  empty: { textAlign: 'center', color: '#737373', marginTop: 48 },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  fabText: { color: 'white', fontSize: 16, fontWeight: '700' },
 });
