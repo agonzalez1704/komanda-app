@@ -1,0 +1,20 @@
+appId: com.komandaapp
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "waiter@example.com"
+- tapOn: "Password"
+- inputText: "correcthorsebatterystaple"
+- tapOn: "Sign in"
+- assertVisible: "Komandas"
+- tapOn: "+ New komanda"
+- tapOn: "Open komanda"
+- tapOn: "Add item"
+- tapOn: "Taco al pastor"
+- tapOn: "+"
+- tapOn:
+    text: "Add to komanda"
+- tapOn: "Close & charge"
+- tapOn: "Cash"
+- tapOn: "Confirm & share receipt"
+- assertVisible: "Komandas"

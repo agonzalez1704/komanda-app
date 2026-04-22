@@ -1,0 +1,26 @@
+appId: com.komandaapp
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "waiter@example.com"
+- tapOn: "Password"
+- inputText: "correcthorsebatterystaple"
+- tapOn: "Sign in"
+- assertVisible: "Komandas"
+- runFlow:
+    commands:
+      - toggleAirplaneMode
+- tapOn: "+ New komanda"
+- tapOn: "Open komanda"
+- assertVisible:
+    text: "Ticket"
+- tapOn: "Add item"
+- tapOn: "Taco al pastor"
+- tapOn:
+    text: "Add to komanda"
+- runFlow:
+    commands:
+      - toggleAirplaneMode
+- assertVisible:
+    text: "komanda-"
+    timeout: 15000
