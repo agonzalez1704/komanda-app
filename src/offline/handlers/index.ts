@@ -1,5 +1,6 @@
 import type { HandlerRegistry } from '@/offline/processor';
 import { createLocalStore } from '@/offline/localStore';
+import { createQueueStore } from '@/offline/queue';
 import { createKomandaHandler } from './createKomanda';
 import { renameKomandaHandler } from './renameKomanda';
 import { updateStatusHandler } from './updateStatus';
@@ -8,6 +9,7 @@ import { updateItemHandler } from './updateItem';
 import { removeItemHandler } from './removeItem';
 import { closeKomandaHandler } from './closeKomanda';
 
+export const queueStore = createQueueStore();
 export const localStore = createLocalStore();
 
 export const handlers: HandlerRegistry = {
