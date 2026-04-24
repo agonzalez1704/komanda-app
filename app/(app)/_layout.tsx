@@ -57,12 +57,14 @@ export default function AppLayout() {
 
   if (session.status === 'loading' || isRestoring) return <Loader />;
   if (session.status === 'signed-out') return <Redirect href="/(auth)/sign-in" />;
-  // Anything other than a confirmed `null` from the server means "don't
-  // know yet" — keep the loader (or a retry surface on hard error) rather
-  // than redirect. `data === null` is the sole proof that the user truly
-  // has no membership.
-  if (membership.isPending || membership.isFetching) return <Loader />;
-  if (membership.isError) {
+  // Block only on the first load (no cached data yet). Do NOT unmount the
+  // Stack for background refetches (`isFetching` without `isPending`): a
+  // child screen that subscribes to ['membership'] with a shorter staleTime
+  // will trigger one on mount, and if we swap the Stack out for <Loader />
+  // mid-navigation the router state resets — the pushed screen ends up as
+  // the only route and router.back() fires "GO_BACK was not handled".
+  if (membership.isPending) return <Loader />;
+  if (membership.isError && !membership.data) {
     return (
       <RetrySurface
         error={membership.error}

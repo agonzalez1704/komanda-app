@@ -34,6 +34,17 @@ export default function KomandaDetail() {
     membership: membership.data,
   });
 
+  // Navigation back: prefer router.back(), but fall back to replacing with
+  // the list when the navigator thinks there's nothing to pop. Deep links
+  // and some cold-start paths land the user here with an empty history,
+  // and a silent "GO_BACK was not handled" warning leaves them stranded.
+  function goBack() {
+    const canGoBack = router.canGoBack();
+    console.log('[KomandaDetail] back canGoBack=', canGoBack);
+    if (canGoBack) router.back();
+    else router.replace('/(app)/komandas');
+  }
+
   if (isLoading) {
     return (
       <Screen>
@@ -73,7 +84,7 @@ export default function KomandaDetail() {
 
   return (
     <Screen scrollable padded={false} bottomInset={120} footer={footer} floatingFooter>
-      <DetailNavBar row={row} onBack={() => router.back()} />
+      <DetailNavBar row={row} onBack={goBack} />
       <HeroTotal
         totalCents={total}
         itemCount={itemCount}
