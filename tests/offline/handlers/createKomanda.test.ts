@@ -47,7 +47,13 @@ describe('createKomandaHandler', () => {
     });
 
     const localStore = createLocalStore();
-    const handle = createKomandaHandler({ localStore });
+    const handle = createKomandaHandler({
+      localStore,
+      resolveWriteContext: async () => ({
+        orgId: 'org-1',
+        authUserId: 'user-1',
+      }),
+    });
 
     await handle({
       id: 'mut-1',

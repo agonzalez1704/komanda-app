@@ -1,0 +1,1663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Komanda — Liquid Glass revamp</title>
+<style>
+  /* =========================================================
+     TOKENS
+     ========================================================= */
+  :root {
+    /* Warm taco palette */
+    --terracotta-50:  #FBEDE6;
+    --terracotta-100: #F5D2C1;
+    --terracotta-500: #C84B1E;
+    --terracotta-600: #A83B14;
+
+    --saffron-50:  #FEF6E3;
+    --saffron-500: #F4A820;
+    --saffron-600: #CC8A10;
+
+    --linen: #FBF6EF;
+    --bone:  #F5EDE1;
+    --sand:  #ECE1CF;
+    --white: #FFFFFF;
+
+    --ink-900: #1C1410;
+    --ink-800: #2A1F18;
+    --ink-700: #3A2E25;
+    --ink-500: #6B5B4C;
+    --ink-400: #8A7A6B;
+    --ink-300: #B6A89A;
+    --ink-200: #D9CEBF;
+    --ink-100: #ECE4DA;
+
+    --success-500: #2F8A4F;
+    --warning-500: #C8811E;
+    --danger-500:  #B42A2A;
+
+    /* Shadows — soft on warm canvas */
+    --shadow-sm: 0 1px 2px rgba(28,20,16,0.04), 0 1px 1px rgba(28,20,16,0.03);
+    --shadow-md: 0 4px 14px rgba(28,20,16,0.06), 0 1px 2px rgba(28,20,16,0.04);
+    --shadow-lg: 0 14px 32px rgba(28,20,16,0.10), 0 2px 6px rgba(28,20,16,0.05);
+
+    /* Liquid Glass shadows — lift + soft ground */
+    --glass-shadow: 0 10px 30px rgba(28,20,16,0.12), 0 2px 6px rgba(28,20,16,0.06);
+    --glass-shadow-dark: 0 10px 30px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.18);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-2xl: 28px;
+    --radius-pill: 999px;
+
+    --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Roboto", "Helvetica Neue", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-stack);
+    color: var(--ink-900);
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(244,168,32,0.10), transparent 60%),
+      radial-gradient(1000px 600px at 110% 110%, rgba(200,75,30,0.08), transparent 60%),
+      var(--linen);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* =========================================================
+     DESIGN BOARD
+     ========================================================= */
+  .board {
+    max-width: 1680px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+  .board-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .board-title {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: var(--ink-900);
+  }
+  .board-subtitle {
+    margin: 6px 0 0;
+    font-size: 15px;
+    color: var(--ink-500);
+    max-width: 620px;
+    line-height: 1.5;
+  }
+  .board-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .tag {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--white);
+    color: var(--ink-500);
+    border: 1px solid var(--ink-100);
+  }
+  .tag.brand { color: var(--terracotta-600); background: var(--terracotta-50); border-color: var(--terracotta-100); }
+  .tag.accent { color: var(--saffron-600); background: var(--saffron-50); border-color: #F7DDAC; }
+  .tag.glass {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    color: var(--ink-700);
+    border-color: rgba(255,255,255,0.7);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(4, 390px);
+    gap: 56px 40px;
+    justify-content: center;
+  }
+  @media (max-width: 1720px) {
+    .phones { grid-template-columns: repeat(2, 390px); }
+  }
+  @media (max-width: 900px) {
+    .phones { grid-template-columns: 390px; }
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone-caption { margin-top: 18px; text-align: center; max-width: 360px; }
+  .phone-caption h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-900);
+  }
+  .phone-caption p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--ink-500);
+    line-height: 1.5;
+  }
+
+  /* =========================================================
+     PHONE FRAME
+     ========================================================= */
+  .phone {
+    width: 390px;
+    height: 844px;
+    border-radius: 52px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+    background: #0E0A07;
+    box-shadow:
+      0 0 0 2px rgba(28,20,16,0.9),
+      0 0 0 10px #0E0A07,
+      0 30px 60px rgba(28,20,16,0.22),
+      0 8px 18px rgba(28,20,16,0.12);
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+    /* Warm canvas with color "content" that glass will refract over */
+    background:
+      radial-gradient(420px 280px at 85% 6%,   rgba(244,168,32,0.55), transparent 60%),
+      radial-gradient(380px 340px at 10% 22%,  rgba(200,75,30,0.38),  transparent 60%),
+      radial-gradient(500px 420px at 100% 78%, rgba(47,138,79,0.18),  transparent 60%),
+      radial-gradient(600px 380px at 10% 105%, rgba(244,168,32,0.30), transparent 60%),
+      linear-gradient(180deg, #FFF7EA 0%, var(--linen) 40%, #F6EADA 100%);
+  }
+  .phone::before {
+    content: "";
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 34px;
+    background: #0a0806;
+    border-radius: 20px;
+    z-index: 40;
+  }
+  .phone-screen::after {
+    content: "";
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 134px;
+    height: 5px;
+    background: var(--ink-900);
+    opacity: 0.85;
+    border-radius: 999px;
+    z-index: 30;
+  }
+
+  /* =========================================================
+     LIQUID GLASS PRIMITIVE
+     ========================================================= */
+  /* Apply .glass to any floating chrome element (nav bars, segmented
+     controls, toolbars, FABs). DON'T apply to content cards. */
+  .glass {
+    background: rgba(255, 250, 243, 0.52);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    /* Specular highlight — a thin bright line along the top of the glass,
+       plus a gentle bottom edge to round out the material. */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+      var(--glass-shadow);
+    color: var(--ink-900);
+  }
+  .glass-dark {
+    background: rgba(28, 20, 16, 0.55);
+    backdrop-filter: blur(30px) saturate(170%);
+    -webkit-backdrop-filter: blur(30px) saturate(170%);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.18),
+      inset 0 -1px 0 rgba(0,0,0,0.25),
+      var(--glass-shadow-dark);
+    color: var(--white);
+  }
+  .glass-tinted {
+    background: rgba(200, 75, 30, 0.92);
+    border: 1px solid rgba(255,255,255,0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.45),
+      inset 0 -1px 0 rgba(0,0,0,0.20),
+      0 10px 22px rgba(200,75,30,0.38),
+      0 2px 6px rgba(28,20,16,0.12);
+    color: var(--white);
+  }
+  /* Subtle "lens sheen" — very faint diagonal gradient to hint at light */
+  .glass::before, .glass-dark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255,255,255,0.10) 0%,
+      rgba(255,255,255,0.00) 30%,
+      rgba(255,255,255,0.00) 70%,
+      rgba(255,255,255,0.08) 100%
+    );
+    pointer-events: none;
+  }
+  .glass { position: relative; }
+  .glass-dark { position: relative; }
+
+  /* =========================================================
+     STATUS BAR
+     ========================================================= */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 28px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-900);
+    flex-shrink: 0;
+    z-index: 20;
+    position: relative;
+  }
+  .status-bar .right { display: flex; gap: 6px; align-items: center; }
+  .status-bar svg { display: block; }
+
+  /* =========================================================
+     LAYOUT
+     ========================================================= */
+  .content { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .scroll { flex: 1; overflow-y: auto; scrollbar-width: none; position: relative; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  /* =========================================================
+     FLOATING TOP NAV BAR (glass capsule, inset from edges)
+     ========================================================= */
+  .topbar-float {
+    position: absolute;
+    top: 50px;                    /* below status bar */
+    left: 16px;
+    right: 16px;
+    height: 52px;
+    border-radius: var(--radius-pill);
+    padding: 0 8px 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    z-index: 15;
+  }
+  .topbar-float .center {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+  .topbar-float .title-small {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-900);
+    letter-spacing: -0.1px;
+    line-height: 18px;
+  }
+  .topbar-float .subtitle-small {
+    font-size: 11px;
+    color: var(--ink-500);
+    margin-top: 1px;
+  }
+  .icon-glass {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-900);
+    background: rgba(255,255,255,0.35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+  }
+
+  /* Pushes content below the floating top bar */
+  .content-start { padding-top: 120px; }
+
+  /* =========================================================
+     LARGE SCREEN TITLE (used in list + add-item, appears
+     below the floating nav bar since that stays compact)
+     ========================================================= */
+  .large-title {
+    padding: 6px 24px 14px;
+  }
+  .large-title .title {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--ink-900);
+    line-height: 36px;
+  }
+  .large-title .subtitle {
+    margin-top: 2px;
+    font-size: 14px;
+    color: var(--ink-500);
+  }
+
+  /* =========================================================
+     ICONS
+     ========================================================= */
+  .ic { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* =========================================================
+     SHARED — PILLS, CHIPS, BADGES
+     ========================================================= */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.open    { background: rgba(244,168,32,0.16); color: #8A5710; }
+  .pill.open    .pill-dot { background: var(--saffron-500); }
+  .pill.pending { background: rgba(139,92,246,0.16); color: #4C1D95; }
+  .pill.pending .pill-dot { background: #8B5CF6; }
+  .pill.served  { background: rgba(47,138,79,0.18); color: #1E5F37; }
+  .pill.served  .pill-dot { background: var(--success-500); }
+  .pill.closed  { background: rgba(28,20,16,0.08); color: var(--ink-500); }
+  .pill.closed  .pill-dot { background: var(--ink-400); }
+
+  /* =========================================================
+     SCREEN 1 — KOMANDAS LIST
+     ========================================================= */
+  .hero-revenue {
+    margin: 0 16px 16px;
+    border-radius: var(--radius-2xl);
+    background: linear-gradient(158deg, #241812 0%, #1C1410 55%, #140D09 100%);
+    padding: 22px 22px 20px;
+    color: var(--white);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-revenue::before {
+    content: "";
+    position: absolute;
+    width: 240px; height: 240px; right: -90px; top: -90px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(244,168,32,0.28), transparent 65%);
+  }
+  /* Specular top edge — mimics the iOS 26 sheen on glossy hero surfaces */
+  .hero-revenue::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 40%);
+    pointer-events: none;
+  }
+  .hero-revenue .cap {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--saffron-500);
+    position: relative;
+  }
+  .hero-revenue .amount {
+    margin-top: 4px;
+    font-size: 38px;
+    line-height: 42px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    position: relative;
+  }
+  .hero-revenue .sub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--ink-200);
+    position: relative;
+  }
+  .hero-stats {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    position: relative;
+  }
+  .hero-stat {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .hero-stat .num {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 26px;
+    letter-spacing: -0.3px;
+  }
+  .hero-stat.open   .num { color: var(--saffron-500); }
+  .hero-stat.closed .num { color: #8AE0A2; }
+  .hero-stat .lbl {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--ink-200);
+    font-weight: 500;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+
+  /* Floating glass segmented filter (capsule, inset) */
+  .segment-float {
+    margin: 0 16px 12px;
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    gap: 2px;
+  }
+  .segment-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 40px;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-700);
+  }
+  .segment-tab.active {
+    background: rgba(255,255,255,0.85);
+    color: var(--ink-900);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,1),
+      0 2px 6px rgba(28,20,16,0.08);
+  }
+  .segment-tab .count {
+    font-size: 11px;
+    min-width: 18px;
+    padding: 0 5px;
+    height: 18px;
+    border-radius: 9px;
+    background: rgba(28,20,16,0.08);
+    color: var(--ink-500);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+  .segment-tab.active .count {
+    background: var(--terracotta-50);
+    color: var(--terracotta-600);
+  }
+
+  /* Content cards (stay solid — content, not chrome) */
+  .k-list { padding: 4px 16px 120px; display: flex; flex-direction: column; gap: 10px; }
+  .k-card {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: 16px 16px 14px;
+    border: 1px solid var(--ink-100);
+    box-shadow: var(--shadow-sm);
+  }
+  .k-card .top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .k-card .id {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-900);
+    letter-spacing: -0.1px;
+  }
+  .k-card .name {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--ink-500);
+  }
+  .k-card .bottom {
+    margin-top: 12px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .k-card .items {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-500);
+  }
+  .k-card .total {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--ink-900);
+  }
+
+  .badge-sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: rgba(244,168,32,0.18);
+    color: #8A5710;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  /* Floating glass FAB (new komanda) */
+  .fab-float {
+    position: absolute;
+    right: 20px;
+    bottom: 34px;
+    height: 56px;
+    padding: 0 22px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    z-index: 10;
+  }
+
+  /* =========================================================
+     SCREEN 2 — KOMANDA DETAIL
+     ========================================================= */
+  .detail-hero {
+    margin: 0 20px 16px;
+    background: var(--white);
+    border-radius: var(--radius-2xl);
+    padding: 20px 20px 22px;
+    border: 1px solid var(--ink-100);
+    box-shadow: var(--shadow-md);
+  }
+  .detail-hero .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--terracotta-500);
+  }
+  .detail-hero .identifier {
+    margin-top: 2px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--ink-900);
+    line-height: 32px;
+  }
+  .detail-hero .display-name {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--ink-500);
+  }
+  .detail-hero .sep {
+    height: 1px;
+    background: var(--ink-100);
+    margin: 16px 0 12px;
+  }
+  .detail-hero .total-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .detail-hero .total-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-400);
+  }
+  .detail-hero .total-value {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    color: var(--ink-900);
+    line-height: 36px;
+  }
+  .detail-hero .total-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--terracotta-50);
+    color: var(--terracotta-600);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* Floating glass status segmented control */
+  .status-seg-float {
+    margin: 0 20px 16px;
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    gap: 2px;
+  }
+  .status-chip {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 40px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-700);
+  }
+  .status-chip.active {
+    background: var(--ink-900);
+    color: var(--white);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.18),
+      0 2px 6px rgba(28,20,16,0.18);
+  }
+
+  .section-title {
+    padding: 0 20px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .section-title .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-400);
+  }
+  .section-title .meta { font-size: 11px; color: var(--ink-400); }
+
+  .items-card {
+    margin: 0 20px 16px;
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--ink-100);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .item-row {
+    display: flex;
+    gap: 12px;
+    padding: 14px 14px;
+    align-items: center;
+  }
+  .item-row + .item-row { border-top: 1px solid var(--ink-100); }
+  .qty {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--terracotta-50);
+    color: var(--terracotta-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .item-body { flex: 1; min-width: 0; }
+  .item-name { font-size: 15px; font-weight: 500; color: var(--ink-900); line-height: 20px; }
+  .item-sub { margin-top: 2px; font-size: 12px; color: var(--ink-500); line-height: 16px; }
+  .item-note { margin-top: 2px; font-size: 12px; color: var(--ink-400); font-style: italic; }
+  .item-price { text-align: right; font-size: 15px; font-weight: 600; color: var(--ink-900); }
+  .item-price .ea { display: block; font-size: 11px; font-weight: 400; color: var(--ink-400); margin-top: 2px; }
+  .item-remove {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(180,42,42,0.10);
+    color: var(--danger-500);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Floating glass action bar (bottom) */
+  .actions-float {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 30px;
+    padding: 10px;
+    border-radius: var(--radius-2xl);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+  }
+  .actions-float.row { flex-direction: row; gap: 8px; align-items: stretch; }
+  .btn {
+    height: 48px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    border: 0;
+    flex: 1;
+    padding: 0 16px;
+    cursor: pointer;
+  }
+  .btn.primary {
+    background: linear-gradient(180deg, #D25526 0%, #C84B1E 55%, #B8420F 100%);
+    color: var(--white);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      inset 0 -1px 0 rgba(0,0,0,0.15),
+      0 6px 14px rgba(200,75,30,0.32);
+  }
+  .btn.secondary {
+    background: rgba(255,255,255,0.55);
+    color: var(--ink-900);
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+  .btn .sub-amount {
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    margin-left: 6px;
+  }
+  .btn.secondary .sub-amount { color: var(--ink-500); }
+
+  /* =========================================================
+     SCREEN 3 — ADD ITEM
+     ========================================================= */
+  /* Floating glass search */
+  .search-float {
+    margin: 0 16px 12px;
+    height: 48px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .search-float input {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-size: 16px;
+    flex: 1;
+    color: var(--ink-900);
+    font-family: inherit;
+  }
+  .search-float input::placeholder { color: var(--ink-500); }
+
+  .chips {
+    padding: 0 16px 12px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-700);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .chip.active {
+    background: var(--ink-900);
+    color: var(--white);
+    border: 1px solid var(--ink-900);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+
+  .category {
+    padding: 0 20px;
+    margin: 4px 0 8px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .category .name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--ink-500);
+  }
+  .category .count {
+    font-size: 11px;
+    color: var(--ink-400);
+    font-weight: 500;
+  }
+
+  .menu-list { padding: 0 20px 120px; display: flex; flex-direction: column; gap: 10px; }
+  .menu-item {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--ink-100);
+    padding: 12px 12px 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .menu-item .thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--saffron-50), var(--terracotta-50));
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 24px;
+  }
+  .menu-item .meta { flex: 1; min-width: 0; }
+  .menu-item .name { font-size: 15px; font-weight: 600; color: var(--ink-900); }
+  .menu-item .variants { margin-top: 2px; font-size: 12px; color: var(--ink-500); }
+  .menu-item .price { font-size: 15px; font-weight: 600; color: var(--ink-900); }
+  .add-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #D25526 0%, #C84B1E 55%, #B8420F 100%);
+    color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      0 4px 10px rgba(200,75,30,0.30);
+    flex-shrink: 0;
+  }
+
+  /* Floating glass cart bar */
+  .cart-float {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 30px;
+    height: 60px;
+    padding: 8px 8px 8px 14px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    z-index: 10;
+  }
+  .cart-float .left { display: flex; align-items: center; gap: 10px; }
+  .cart-count {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #FFCF70 0%, var(--saffron-500) 100%);
+    color: var(--ink-900);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 2px 6px rgba(244,168,32,0.4);
+  }
+  .cart-float .label { font-size: 11px; color: var(--ink-500); font-weight: 500; letter-spacing: 0.4px; text-transform: uppercase; }
+  .cart-float .total { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; color: var(--ink-900); }
+  .cart-float .done {
+    height: 44px;
+    padding: 0 18px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(180deg, #D25526 0%, #C84B1E 55%, #B8420F 100%);
+    color: var(--white);
+    font-size: 14px; font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      0 4px 10px rgba(200,75,30,0.30);
+  }
+
+  /* =========================================================
+     SCREEN 4 — CLOSE & CHARGE
+     ========================================================= */
+  .close-summary {
+    margin: 0 20px 16px;
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--ink-100);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .close-summary .head {
+    padding: 14px 16px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .close-summary .row-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--ink-100);
+  }
+  .close-summary .qty-mini {
+    min-width: 28px;
+    color: var(--terracotta-600);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .close-summary .name { flex: 1; font-size: 15px; color: var(--ink-900); }
+  .close-summary .name span { color: var(--ink-500); font-size: 14px; }
+  .close-summary .price { font-size: 15px; font-weight: 600; color: var(--ink-900); }
+
+  .total-card {
+    margin: 0 20px 20px;
+    background: linear-gradient(140deg, #241812 0%, #1C1410 100%);
+    border-radius: var(--radius-2xl);
+    padding: 20px 22px 18px;
+    color: var(--white);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+  }
+  .total-card::before {
+    content: "";
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(244,168,32,0.22), transparent 65%);
+  }
+  .total-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 40%);
+    pointer-events: none;
+  }
+  .total-card .row-1 {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    position: relative;
+  }
+  .total-card .lbl {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-200);
+    letter-spacing: -0.1px;
+  }
+  .total-card .value {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    color: var(--saffron-500);
+    line-height: 42px;
+  }
+  .total-card .footnote {
+    margin-top: 6px;
+    text-align: right;
+    font-size: 11px;
+    color: var(--ink-300);
+    letter-spacing: 0.3px;
+    position: relative;
+  }
+
+  .method-title { padding: 0 20px; margin-bottom: 10px; }
+  .method-title .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-400);
+  }
+  .methods {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 0 20px 120px;
+  }
+  .method-tile {
+    aspect-ratio: 1/1;
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--ink-100);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    color: var(--ink-500);
+    box-shadow: var(--shadow-sm);
+  }
+  .method-tile .tile-label { font-size: 14px; font-weight: 600; color: var(--ink-900); }
+  .method-tile.active {
+    background: linear-gradient(180deg, #FFF4ED 0%, var(--terracotta-50) 100%);
+    border-color: var(--terracotta-500);
+    color: var(--terracotta-600);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.9),
+      0 4px 10px rgba(200,75,30,0.14);
+  }
+  .method-tile.active .tile-label { color: var(--terracotta-600); }
+
+  /* =========================================================
+     BOARD FOOTER
+     ========================================================= */
+  .board-footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--ink-100);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .board-footer h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--ink-500);
+  }
+  .board-footer ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--ink-700);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .board-footer code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: var(--white);
+    border: 1px solid var(--ink-100);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--ink-700);
+  }
+  @media (max-width: 900px) { .board-footer { grid-template-columns: 1fr; } }
+
+  /* Reusable status-bar SVG chrome */
+  .signal { display: flex; gap: 6px; align-items: center; }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <header class="board-header">
+    <div>
+      <h1 class="board-title">Komanda — Liquid Glass revamp</h1>
+      <p class="board-subtitle">
+        Warm-taco identity carried into Apple's iOS 26 Liquid Glass material. Floating chrome —
+        nav bars, segmented controls, action bars — becomes translucent glass with specular
+        highlights and concentric corners. Content cards (komanda rows, order items, menu items)
+        stay solid so text reads cleanly, per Apple's guidance that glass lives on the navigation
+        layer, not on content.
+      </p>
+    </div>
+    <div class="board-meta">
+      <span class="tag brand">Terracotta primary</span>
+      <span class="tag accent">Saffron accent</span>
+      <span class="tag glass">Liquid Glass chrome</span>
+      <span class="tag">Concentric radii</span>
+    </div>
+  </header>
+
+  <div class="phones">
+
+    <!-- ================= SCREEN 1 — Komandas list ================= -->
+    <div class="phone-wrap">
+      <div class="phone"><div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="right signal">
+            <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><path d="M1 6a1 1 0 011-1h1a1 1 0 011 1v4a1 1 0 01-1 1H2a1 1 0 01-1-1V6zm4-2a1 1 0 011-1h1a1 1 0 011 1v6a1 1 0 01-1 1H6a1 1 0 01-1-1V4zm4-2a1 1 0 011-1h1a1 1 0 011 1v8a1 1 0 01-1 1h-1a1 1 0 01-1-1V2zm4-2a1 1 0 011-1h1a1 1 0 011 1v10a1 1 0 01-1 1h-1a1 1 0 01-1-1V0z"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 4c1.9-1.9 5-3 7-3s5.1 1.1 7 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 6.5C4.9 5.2 6.5 4.5 8 4.5s3.1.7 4.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/></svg>
+            <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="21" height="10" rx="2.5" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="16" height="7" rx="1.2" fill="currentColor"/><rect x="22" y="3.5" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.5"/></svg>
+          </div>
+        </div>
+
+        <!-- Floating glass nav pill -->
+        <div class="topbar-float glass">
+          <div class="icon-glass" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <div class="center">
+            <div class="title-small">Komandas</div>
+            <div class="subtitle-small">Friday, 24 April</div>
+          </div>
+          <div class="icon-glass" aria-label="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.1a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3h0a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5h0a1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8v0a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="scroll content-start">
+
+            <!-- Revenue hero (content — stays solid dark) -->
+            <div class="hero-revenue">
+              <div class="cap">Today's revenue</div>
+              <div class="amount tnum">$4,820.00</div>
+              <div class="sub">from 12 closed komandas</div>
+              <div class="hero-stats">
+                <div class="hero-stat open"><div class="num tnum">5</div><div class="lbl">Open</div></div>
+                <div class="hero-stat closed"><div class="num tnum">12</div><div class="lbl">Closed</div></div>
+                <div class="hero-stat"><div class="num tnum" style="color:#fff;">48</div><div class="lbl">Items sold</div></div>
+              </div>
+            </div>
+
+            <!-- Floating glass segmented filter -->
+            <div class="segment-float glass">
+              <div class="segment-tab active">Active <span class="count">5</span></div>
+              <div class="segment-tab">All <span class="count">17</span></div>
+              <div class="segment-tab">Closed <span class="count">12</span></div>
+            </div>
+
+            <!-- Content cards (solid, for readability) -->
+            <div class="k-list">
+              <div class="k-card">
+                <div class="top">
+                  <div>
+                    <div class="id">#14 · Mesa 3</div>
+                    <div class="name">Familia Ramírez</div>
+                  </div>
+                  <span class="pill open"><span class="pill-dot"></span>Open</span>
+                </div>
+                <div class="bottom">
+                  <div class="items">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v-1a7 7 0 10-14 0v1z"/><path d="M3 14h18l-1.5 5.5a2 2 0 01-2 1.5h-11a2 2 0 01-2-1.5L3 14z"/></svg>
+                    8 items
+                  </div>
+                  <div class="total tnum">$520.00</div>
+                </div>
+              </div>
+
+              <div class="k-card">
+                <div class="top">
+                  <div>
+                    <div class="id">#15 · Barra</div>
+                    <div class="name">Tomás</div>
+                  </div>
+                  <span class="pill pending"><span class="pill-dot"></span>Pending</span>
+                </div>
+                <div class="bottom">
+                  <div class="items">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v-1a7 7 0 10-14 0v1z"/><path d="M3 14h18l-1.5 5.5a2 2 0 01-2 1.5h-11a2 2 0 01-2-1.5L3 14z"/></svg>
+                    3 items
+                    <span class="badge-sync" style="margin-left:6px">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7M21 3v6h-6"/></svg>
+                      Sync
+                    </span>
+                  </div>
+                  <div class="total tnum">$180.00</div>
+                </div>
+              </div>
+
+              <div class="k-card">
+                <div class="top">
+                  <div>
+                    <div class="id">#16 · Mesa 7</div>
+                    <div class="name">Para llevar</div>
+                  </div>
+                  <span class="pill served"><span class="pill-dot"></span>Served</span>
+                </div>
+                <div class="bottom">
+                  <div class="items">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v-1a7 7 0 10-14 0v1z"/><path d="M3 14h18l-1.5 5.5a2 2 0 01-2 1.5h-11a2 2 0 01-2-1.5L3 14z"/></svg>
+                    5 items
+                  </div>
+                  <div class="total tnum">$340.00</div>
+                </div>
+              </div>
+
+              <div class="k-card">
+                <div class="top">
+                  <div>
+                    <div class="id">#17 · Terraza 2</div>
+                    <div class="name">—</div>
+                  </div>
+                  <span class="pill open"><span class="pill-dot"></span>Open</span>
+                </div>
+                <div class="bottom">
+                  <div class="items">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v-1a7 7 0 10-14 0v1z"/><path d="M3 14h18l-1.5 5.5a2 2 0 01-2 1.5h-11a2 2 0 01-2-1.5L3 14z"/></svg>
+                    1 item
+                  </div>
+                  <div class="total tnum">$65.00</div>
+                </div>
+              </div>
+
+              <div class="k-card">
+                <div class="top">
+                  <div>
+                    <div class="id">#12</div>
+                    <div class="name">Aurora &amp; amigas</div>
+                  </div>
+                  <span class="pill closed"><span class="pill-dot"></span>Closed</span>
+                </div>
+                <div class="bottom">
+                  <div class="items">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v-1a7 7 0 10-14 0v1z"/><path d="M3 14h18l-1.5 5.5a2 2 0 01-2 1.5h-11a2 2 0 01-2-1.5L3 14z"/></svg>
+                    6 items · Card
+                  </div>
+                  <div class="total tnum" style="color:var(--ink-500)">$412.00</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating glass FAB-capsule -->
+          <div class="fab-float glass-tinted" aria-label="New komanda">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            New
+          </div>
+        </div>
+      </div></div>
+      <div class="phone-caption">
+        <h3>Komandas list</h3>
+        <p>Floating glass nav pill and glass segmented filter sit above the scrolling content. Cards stay solid — text over glass has to fight background chatter, and orders are the thing you scan fastest.</p>
+      </div>
+    </div>
+
+    <!-- ================= SCREEN 2 — Komanda detail ================= -->
+    <div class="phone-wrap">
+      <div class="phone"><div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="right signal">
+            <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><path d="M1 6a1 1 0 011-1h1a1 1 0 011 1v4a1 1 0 01-1 1H2a1 1 0 01-1-1V6zm4-2a1 1 0 011-1h1a1 1 0 011 1v6a1 1 0 01-1 1H6a1 1 0 01-1-1V4zm4-2a1 1 0 011-1h1a1 1 0 011 1v8a1 1 0 01-1 1h-1a1 1 0 01-1-1V2zm4-2a1 1 0 011-1h1a1 1 0 011 1v10a1 1 0 01-1 1h-1a1 1 0 01-1-1V0z"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 4c1.9-1.9 5-3 7-3s5.1 1.1 7 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 6.5C4.9 5.2 6.5 4.5 8 4.5s3.1.7 4.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/></svg>
+            <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="21" height="10" rx="2.5" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="16" height="7" rx="1.2" fill="currentColor"/><rect x="22" y="3.5" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.5"/></svg>
+          </div>
+        </div>
+
+        <!-- Floating glass nav pill -->
+        <div class="topbar-float glass">
+          <div class="icon-glass" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div class="center">
+            <div class="title-small">Komanda #14</div>
+            <div class="subtitle-small">Mesa 3 · opened 7:40 pm</div>
+          </div>
+          <div class="icon-glass" aria-label="More">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="scroll content-start" style="padding-bottom: 180px;">
+
+            <!-- Solid hero (content, not chrome) -->
+            <div class="detail-hero">
+              <div class="eyebrow">Running order</div>
+              <div class="identifier tnum">#14 · Mesa 3</div>
+              <div class="display-name">Familia Ramírez · 4 personas</div>
+              <div class="sep"></div>
+              <div class="total-row">
+                <div>
+                  <div class="total-label">Running total</div>
+                  <div class="total-value tnum">$520.00</div>
+                </div>
+                <div class="total-chip">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M5 11h14v-1a7 7 0 10-14 0v1zm-2 3h18l-1.5 5.5a2 2 0 01-2 1.5h-11a2 2 0 01-2-1.5L3 14z"/></svg>
+                  8 items
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating glass status segmented control -->
+            <div class="status-seg-float glass">
+              <div class="status-chip active">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
+                Open
+              </div>
+              <div class="status-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Pending
+              </div>
+              <div class="status-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14 9 11"/></svg>
+                Served
+              </div>
+            </div>
+
+            <div class="section-title">
+              <span class="eyebrow">Items</span>
+              <span class="meta">3 lines · 8 units</span>
+            </div>
+
+            <div class="items-card">
+              <div class="item-row">
+                <div class="qty">3×</div>
+                <div class="item-body">
+                  <div class="item-name">Taco al pastor</div>
+                  <div class="item-sub">Con piña · sin cebolla</div>
+                </div>
+                <div class="item-price">$180.00<span class="ea">$60.00 ea</span></div>
+                <div class="item-remove">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </div>
+              </div>
+              <div class="item-row">
+                <div class="qty">2×</div>
+                <div class="item-body">
+                  <div class="item-name">Quesadilla de flor</div>
+                  <div class="item-sub">Queso Oaxaca</div>
+                  <div class="item-note">"bien doradas por favor"</div>
+                </div>
+                <div class="item-price">$220.00<span class="ea">$110.00 ea</span></div>
+                <div class="item-remove">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </div>
+              </div>
+              <div class="item-row">
+                <div class="qty">3×</div>
+                <div class="item-body">
+                  <div class="item-name">Agua de jamaica</div>
+                  <div class="item-sub">Chica</div>
+                </div>
+                <div class="item-price">$120.00<span class="ea">$40.00 ea</span></div>
+                <div class="item-remove">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating glass action bar -->
+          <div class="actions-float glass row">
+            <button class="btn secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add item
+            </button>
+            <button class="btn primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              Close<span class="sub-amount">· $520.00</span>
+            </button>
+          </div>
+        </div>
+      </div></div>
+      <div class="phone-caption">
+        <h3>Komanda detail</h3>
+        <p>Two floating glass bars frame the content: nav pill up top, action pill at the bottom. Status becomes a glass segmented control. The hero and item list stay solid white so prices and modifiers read crisply.</p>
+      </div>
+    </div>
+
+    <!-- ================= SCREEN 3 — Add item ================= -->
+    <div class="phone-wrap">
+      <div class="phone"><div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="right signal">
+            <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><path d="M1 6a1 1 0 011-1h1a1 1 0 011 1v4a1 1 0 01-1 1H2a1 1 0 01-1-1V6zm4-2a1 1 0 011-1h1a1 1 0 011 1v6a1 1 0 01-1 1H6a1 1 0 01-1-1V4zm4-2a1 1 0 011-1h1a1 1 0 011 1v8a1 1 0 01-1 1h-1a1 1 0 01-1-1V2zm4-2a1 1 0 011-1h1a1 1 0 011 1v10a1 1 0 01-1 1h-1a1 1 0 01-1-1V0z"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 4c1.9-1.9 5-3 7-3s5.1 1.1 7 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 6.5C4.9 5.2 6.5 4.5 8 4.5s3.1.7 4.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/></svg>
+            <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="21" height="10" rx="2.5" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="16" height="7" rx="1.2" fill="currentColor"/><rect x="22" y="3.5" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.5"/></svg>
+          </div>
+        </div>
+
+        <div class="topbar-float glass">
+          <div class="icon-glass" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div class="center">
+            <div class="title-small">Add item</div>
+            <div class="subtitle-small">#14 · Running $520.00</div>
+          </div>
+          <div class="icon-glass" aria-label="New product">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="scroll content-start" style="padding-bottom: 160px;">
+
+            <!-- Floating glass search -->
+            <div class="search-float glass">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input placeholder="Search menu" />
+              <span style="font-size:11px;color:var(--ink-500);font-weight:600;padding:2px 6px;background:rgba(28,20,16,0.06);border-radius:4px;">⌘K</span>
+            </div>
+
+            <div class="chips">
+              <div class="chip active">All · 24</div>
+              <div class="chip glass">🌮 Tacos</div>
+              <div class="chip glass">🥣 Sopas</div>
+              <div class="chip glass">🥤 Bebidas</div>
+              <div class="chip glass">🍰 Postres</div>
+            </div>
+
+            <div class="category">
+              <span class="name">Tacos</span>
+              <span class="count">8 items</span>
+            </div>
+
+            <div class="menu-list">
+              <div class="menu-item">
+                <div class="thumb">🌮</div>
+                <div class="meta">
+                  <div class="name">Taco al pastor</div>
+                  <div class="variants">3 variantes · con piña</div>
+                </div>
+                <div class="price tnum">$60</div>
+                <div class="add-btn">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
+              </div>
+              <div class="menu-item">
+                <div class="thumb">🥩</div>
+                <div class="meta">
+                  <div class="name">Taco de suadero</div>
+                  <div class="variants">2 variantes</div>
+                </div>
+                <div class="price tnum">$55</div>
+                <div class="add-btn">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
+              </div>
+              <div class="menu-item">
+                <div class="thumb">🍗</div>
+                <div class="meta">
+                  <div class="name">Taco de pollo</div>
+                  <div class="variants">Con frijoles</div>
+                </div>
+                <div class="price tnum">$55</div>
+                <div class="add-btn">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
+              </div>
+              <div class="menu-item">
+                <div class="thumb">🌶️</div>
+                <div class="meta">
+                  <div class="name">Campechano</div>
+                  <div class="variants">Pastor + suadero</div>
+                </div>
+                <div class="price tnum">$70</div>
+                <div class="add-btn">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating glass cart bar -->
+          <div class="cart-float glass">
+            <div class="left">
+              <div class="cart-count">3</div>
+              <div>
+                <div class="label">Agregado</div>
+                <div class="total tnum">$180.00</div>
+              </div>
+            </div>
+            <div class="done">
+              Done
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="phone-caption">
+        <h3>Add item</h3>
+        <p>Search + category chips become glass chrome; the menu list is solid for legibility. The cart mini-bar floats at the bottom as a glass pill so waiters can batch-add without losing context.</p>
+      </div>
+    </div>
+
+    <!-- ================= SCREEN 4 — Close & charge ================= -->
+    <div class="phone-wrap">
+      <div class="phone"><div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="right signal">
+            <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><path d="M1 6a1 1 0 011-1h1a1 1 0 011 1v4a1 1 0 01-1 1H2a1 1 0 01-1-1V6zm4-2a1 1 0 011-1h1a1 1 0 011 1v6a1 1 0 01-1 1H6a1 1 0 01-1-1V4zm4-2a1 1 0 011-1h1a1 1 0 011 1v8a1 1 0 01-1 1h-1a1 1 0 01-1-1V2zm4-2a1 1 0 011-1h1a1 1 0 011 1v10a1 1 0 01-1 1h-1a1 1 0 01-1-1V0z"/></svg>
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 4c1.9-1.9 5-3 7-3s5.1 1.1 7 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 6.5C4.9 5.2 6.5 4.5 8 4.5s3.1.7 4.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/></svg>
+            <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="21" height="10" rx="2.5" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="16" height="7" rx="1.2" fill="currentColor"/><rect x="22" y="3.5" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.5"/></svg>
+          </div>
+        </div>
+
+        <div class="topbar-float glass">
+          <div class="icon-glass" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div class="center">
+            <div class="title-small">Close &amp; charge</div>
+            <div class="subtitle-small">#14 · Mesa 3</div>
+          </div>
+          <div class="icon-glass" aria-label="Share">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="scroll content-start" style="padding-bottom: 140px;">
+            <div class="section-title">
+              <span class="eyebrow">Order summary</span>
+              <span class="meta">3 lines</span>
+            </div>
+
+            <div class="close-summary">
+              <div class="row-item" style="border-top:0">
+                <div class="qty-mini tnum">3×</div>
+                <div class="name">Taco al pastor <span>· con piña</span></div>
+                <div class="price tnum">$180.00</div>
+              </div>
+              <div class="row-item">
+                <div class="qty-mini tnum">2×</div>
+                <div class="name">Quesadilla de flor</div>
+                <div class="price tnum">$220.00</div>
+              </div>
+              <div class="row-item">
+                <div class="qty-mini tnum">3×</div>
+                <div class="name">Agua de jamaica <span>· chica</span></div>
+                <div class="price tnum">$120.00</div>
+              </div>
+            </div>
+
+            <div class="total-card">
+              <div class="row-1">
+                <div class="lbl">Total a cobrar</div>
+                <div class="value tnum">$520.00</div>
+              </div>
+              <div class="footnote">IVA incluido · MXN</div>
+            </div>
+
+            <div class="method-title">
+              <div class="eyebrow">Payment method</div>
+            </div>
+
+            <div class="methods">
+              <div class="method-tile active">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="9" y2="15"/></svg>
+                <div class="tile-label">Cash</div>
+              </div>
+              <div class="method-tile">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <div class="tile-label">Card</div>
+              </div>
+              <div class="method-tile">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                <div class="tile-label">Transfer</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions-float glass">
+            <button class="btn primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              Confirm &amp; share receipt
+            </button>
+          </div>
+        </div>
+      </div></div>
+      <div class="phone-caption">
+        <h3>Close &amp; charge</h3>
+        <p>Dark total card stays solid (it IS the content here). The primary confirm button floats inside a glass pill at the bottom — still obviously terracotta, but now it lifts off a translucent surface rather than a flat bar.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="board-footer">
+    <div>
+      <h4>Liquid Glass rules followed</h4>
+      <ul>
+        <li>Glass only on navigation &amp; chrome — nav bars, segmented controls, search, cart bar, action bar, FAB.</li>
+        <li>Content (hero, cards, list rows, total card, method tiles) stays <strong>solid</strong> so prices and modifiers don't fight refracted color.</li>
+        <li>Specular top highlight on every glass surface: <code>inset 0 1px 0 rgba(255,255,255,0.85)</code>.</li>
+        <li>Concentric corners — outer pills at <code>999px</code> with <code>999px</code> inner segment chips; capsule bars at <code>28px</code> with <code>pill</code> buttons inside.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Materials</h4>
+      <ul>
+        <li>Regular glass: <code>rgba(255,250,243,0.52)</code> + <code>blur(30px) saturate(180%)</code>.</li>
+        <li>Dark glass (optional for dark mode): <code>rgba(28,20,16,0.55)</code> + same blur.</li>
+        <li>Tinted glass (primary CTA FAB): terracotta with bright specular highlight and 22px pill shadow.</li>
+        <li>Canvas has warm saffron + terracotta radial blobs so the glass actually <em>looks</em> like glass (it needs color behind it to refract).</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Accessibility guard-rails</h4>
+      <ul>
+        <li>44pt minimum tap targets on every glass control (nav buttons 40pt + hitSlop, pills 40pt tall, FAB 56pt).</li>
+        <li>Text on glass is <code>ink-900</code> — 12:1 contrast on the lightened backdrop.</li>
+        <li>If the user enables <em>Reduce Transparency</em>, the glass falls back to solid <code>bone</code> — already planned for the RN port.</li>
+        <li>NN/g's readability concerns addressed by keeping content on solid surfaces.</li>
+      </ul>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

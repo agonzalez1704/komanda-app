@@ -5,7 +5,8 @@ import { rememberSync, resolveId, type LocalStore } from '@/offline/localStore';
 export interface AddItemPayload {
   item_local_uuid: string;
   komanda_id: string;
-  product_id: string;
+  /** null for ad-hoc/custom items that aren't in the menu. */
+  product_id: string | null;
   variant_id: string | null;
   quantity: number;
   unit_price_cents: number;

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { insforge, bootstrapSession } from './client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  AUTH_TOKEN_KEY,
+  bootstrapSession,
+  loadCachedUser,
+} from './client';
 
 export type SessionState =
   | { status: 'loading' }
@@ -7,8 +12,14 @@ export type SessionState =
   | { status: 'signed-in'; session: { userId: string; email: string } };
 
 /**
- * Reads and validates the current auth state from the SDK.
- * Must be called after `bootstrapSession()` has restored the token.
+ * Reads the current auth state from AsyncStorage.
+ *
+ * We deliberately avoid `insforge.auth.getCurrentUser()` here: in server mode
+ * that call reads from a private tokenManager that `setAuthToken` does not
+ * populate, so it returns an empty user right after a fresh sign-in. Sourcing
+ * identity from the cache we wrote during sign-in is both faster and more
+ * reliable; the SDK's `autoRefreshToken` handles expiration on the next API
+ * call.
  *
  * Returns a stable `refreshSession` function that sign-in / sign-out screens
  * can call to force a re-check without unmounting the hook.
@@ -28,19 +39,23 @@ export function useSession(): SessionState & { refreshSession: () => void } {
 
     async function checkSession() {
       await bootstrapSession();
-      const { data, error } = await insforge.auth.getCurrentUser();
+
+      const [accessToken, user] = await Promise.all([
+        AsyncStorage.getItem(AUTH_TOKEN_KEY),
+        loadCachedUser(),
+      ]);
+
       if (!mounted) return;
-      if (error) {
-        console.warn('[useSession] getCurrentUser error:', error);
-      }
-      if (error || !data?.user?.id || !data?.user?.email) {
+
+      if (!accessToken || !user) {
         setState({ status: 'signed-out' });
-      } else {
-        setState({
-          status: 'signed-in',
-          session: { userId: data.user.id, email: data.user.email },
-        });
+        return;
       }
+
+      setState({
+        status: 'signed-in',
+        session: { userId: user.id, email: user.email },
+      });
     }
 
     checkSession();

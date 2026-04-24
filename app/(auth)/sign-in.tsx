@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { insforge, persistToken } from '@/insforge/client';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { insforge, persistSession } from '@/insforge/client';
+import { Button, Screen, Text, TextField } from '@/components/ui';
+import { color, palette, radius, shadow, space } from '@/theme/tokens';
 
 export default function SignIn() {
   const router = useRouter();
@@ -24,9 +18,27 @@ export default function SignIn() {
     setError(null);
     try {
       const { data, error: signInErr } = await insforge.auth.signInWithPassword({ email, password });
+      console.log('[sign-in] result', {
+        hasData: !!data,
+        hasAccess: !!data?.accessToken,
+        hasRefresh: !!data?.refreshToken,
+        hasUser: !!(data as any)?.user,
+        userId: (data as any)?.user?.id,
+        errMsg: signInErr?.message,
+      });
       if (signInErr) throw signInErr;
-      // Persist the access token so it survives app restarts.
-      if (data?.accessToken) await persistToken(data.accessToken);
+      if (data?.accessToken) {
+        const u = (data as any)?.user;
+        const userId: string | undefined = u?.id;
+        const userEmail: string | undefined = u?.email ?? email;
+        await persistSession({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken ?? null,
+          user: userId && userEmail ? { id: userId, email: userEmail } : null,
+        });
+      } else {
+        throw new Error('No access token returned');
+      }
       router.replace('/(app)/komandas');
     } catch (e: any) {
       setError(e?.message ?? 'Sign in failed');
@@ -35,56 +47,107 @@ export default function SignIn() {
     }
   }
 
+  const disabled = submitting || !email || !password;
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.root}
-    >
+    <Screen avoidKeyboard scrollable contentContainerStyle={styles.root}>
+      <View style={styles.brand}>
+        <View style={styles.logoMark}>
+          <Ionicons name="restaurant" size={30} color={palette.terracotta500} />
+        </View>
+        <Text variant="display" align="center" style={styles.wordmark}>
+          Komanda
+        </Text>
+        <Text variant="bodySm" align="center">
+          Taco restaurant point-of-sale
+        </Text>
+      </View>
+
       <View style={styles.card}>
-        <Text style={styles.title}>Komanda</Text>
-        <TextInput
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-        />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <TouchableOpacity
-          disabled={submitting || !email || !password}
+        <Text variant="h2" style={{ marginBottom: space.xs }}>
+          Sign in
+        </Text>
+        <Text variant="bodySm" style={{ marginBottom: space.lg }}>
+          Enter your email and password to continue.
+        </Text>
+
+        <View style={{ gap: space.md }}>
+          <TextField
+            label="Email"
+            placeholder="you@example.com"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+          />
+          <TextField
+            label="Password"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            error={error}
+          />
+        </View>
+
+        <Button
+          label="Sign in"
           onPress={onSubmit}
-          style={[styles.button, (submitting || !email || !password) && styles.buttonDisabled]}
-        >
-          {submitting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Sign in</Text>
-          )}
-        </TouchableOpacity>
-        <Link href="/(auth)/sign-up" style={styles.link}>
-          Have an invite? Tap here.
+          disabled={disabled}
+          loading={submitting}
+          style={{ marginTop: space.xl }}
+        />
+
+        <Link href="/(auth)/sign-up" asChild>
+          <Pressable style={styles.link} accessibilityRole="link">
+            <Text style={{ color: color.primary }}>
+              New here? Create an account or accept an invite
+            </Text>
+          </Pressable>
         </Link>
       </View>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: 'center', backgroundColor: '#f4f4f5' },
-  card: { padding: 20, margin: 20, backgroundColor: 'white', borderRadius: 12, gap: 12 },
-  title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#d4d4d8', borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: '#111827', borderRadius: 8, padding: 14, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
-  error: { color: '#dc2626', fontSize: 14 },
-  link: { color: '#2563eb', fontSize: 14, textAlign: 'center', marginTop: 8 },
+  root: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: space.xxxl,
+    gap: space.xxl,
+  },
+  brand: {
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  logoMark: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xl,
+    backgroundColor: palette.terracotta50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.sm,
+    ...shadow.sm,
+  },
+  wordmark: {
+    letterSpacing: -0.8,
+  },
+  card: {
+    backgroundColor: color.surface,
+    borderRadius: radius.xl,
+    padding: space.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.border,
+    ...shadow.md,
+  },
+  link: {
+    alignSelf: 'center',
+    marginTop: space.lg,
+  },
 });

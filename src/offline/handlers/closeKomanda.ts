@@ -14,7 +14,11 @@ export function closeKomandaHandler(deps: { localStore: LocalStore }) {
   return async function handle(m: QueuedMutation): Promise<void> {
     const p = m.payload as CloseKomandaPayload;
     const id = await resolveId(deps.localStore, p.komanda_id);
-    const { error } = await insforge.database
+    // `.select()` forces PostgREST to return the updated rows. Without it,
+    // an UPDATE that matches 0 rows (because the server id mapping isn't in
+    // place yet, or RLS hid the row) returns `error: null` and the handler
+    // would dequeue silently — leaving the UI "closed" but the DB untouched.
+    const { data, error } = await insforge.database
       .from('komandas')
       .update({
         status: 'closed',
@@ -22,7 +26,13 @@ export function closeKomandaHandler(deps: { localStore: LocalStore }) {
         total_cents: p.total_cents,
         closed_at: p.closed_at,
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error(
+        `close_komanda: no row matched id=${id} (likely sync mapping missing or RLS blocked)`,
+      );
+    }
   };
 }

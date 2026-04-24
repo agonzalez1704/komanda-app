@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import 'react-native-get-random-values';
 import { enqueue } from '@/offline/queue';
 import { queueStore } from '@/offline/handlers';
 import { useSession } from '@/insforge/session';
 import type { KomandaRowT } from '@/insforge/schemas';
+import { uuidv4 } from '@/lib/uuid';
 
 export function useCreateKomanda() {
   const qc = useQueryClient();
@@ -12,7 +12,7 @@ export function useCreateKomanda() {
   return useMutation({
     mutationFn: async (input: { display_name: string | null }) => {
       if (session.status !== 'signed-in') throw new Error('not_signed_in');
-      const local_uuid = (globalThis.crypto as any).randomUUID();
+      const local_uuid = uuidv4();
       const opened_at = new Date().toISOString();
 
       const optimistic: KomandaRowT = {
@@ -31,6 +31,8 @@ export function useCreateKomanda() {
       };
 
       qc.setQueryData<KomandaRowT[]>(['komandas', 'today'], (prev) => [optimistic, ...(prev ?? [])]);
+      qc.setQueryData<KomandaRowT>(['komanda', local_uuid], optimistic);
+      qc.setQueryData<unknown[]>(['komanda', local_uuid, 'items'], []);
 
       await enqueue(queueStore, {
         type: 'create_komanda',

@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useCreateKomanda } from '@/mutations/useCreateKomanda';
+import {
+  Button,
+  GlassSurface,
+  IconButton,
+  Screen,
+  Text,
+  TextField,
+} from '@/components/ui';
+import { color, fontWeight, palette, radius, shadow, space } from '@/theme/tokens';
 
 export default function NewKomanda() {
   const router = useRouter();
@@ -14,36 +24,180 @@ export default function NewKomanda() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.root}
+    <Screen
+      avoidKeyboard
+      scrollable
+      padded={false}
+      floatingFooter
+      contentContainerStyle={{ paddingBottom: 140 }}
+      footer={
+        <GlassSurface radius={radius.xxl} contentStyle={styles.actionBar}>
+          <Button
+            label="Cancel"
+            variant="ghost"
+            haptic={false}
+            onPress={() => router.back()}
+            style={{ flex: 0.8 }}
+          />
+          <Button
+            label="Open komanda"
+            onPress={go}
+            loading={create.isPending}
+            leadingIcon={<Ionicons name="arrow-forward" size={18} color={color.primaryOn} />}
+            style={{ flex: 1.4 }}
+          />
+        </GlassSurface>
+      }
     >
-      <Text style={styles.title}>New komanda</Text>
-      <Text style={styles.label}>Optional rename (e.g. "Table 5")</Text>
-      <TextInput
-        placeholder="Leave empty for auto number"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-      />
-      <TouchableOpacity onPress={go} disabled={create.isPending} style={[styles.button, create.isPending && styles.buttonDisabled]}>
-        {create.isPending ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Open komanda</Text>}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.back()} style={styles.cancel}>
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+      {/* Floating glass nav pill — back chevron + eyebrow/title block. */}
+      <View style={styles.hdrPad}>
+        <GlassSurface radius={radius.xxl} contentStyle={styles.hdrInner}>
+          <IconButton
+            glass
+            name="chevron-back"
+            onPress={() => router.back()}
+            accessibilityLabel="Back"
+          />
+          <View style={{ flex: 1, paddingLeft: space.xs }}>
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: fontWeight.bold,
+                color: color.textTertiary,
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+              }}
+            >
+              New order
+            </Text>
+            <Text variant="h3" numberOfLines={1}>
+              Open a komanda
+            </Text>
+          </View>
+        </GlassSurface>
+      </View>
+
+      {/* Ambient hero — the saffron eyebrow + oversized title sit directly on
+          the warm canvas, letting the halos and gradient read through. No
+          dark container fighting the glass aesthetic. */}
+      <View style={styles.heroPad}>
+        <View style={styles.heroBadge}>
+          <Ionicons name="receipt-outline" size={14} color={palette.saffron600} />
+          <Text style={styles.heroBadgeText}>Fresh komanda</Text>
+        </View>
+        <Text style={styles.heroTitle}>
+          Open a{' '}
+          <Text style={styles.heroTitleAccent}>fresh</Text>
+          {'\n'}komanda.
+        </Text>
+        <Text style={styles.heroSubtitle}>
+          A new number is assigned automatically. Add a table label if it helps
+          you remember which party this is for.
+        </Text>
+      </View>
+
+      {/* Solid form card — CONTENT, not chrome, so it stays flat and readable. */}
+      <View style={styles.formPad}>
+        <View style={styles.card}>
+          <TextField
+            label="Table label (optional)"
+            placeholder={'e.g. "Table 5" or "Bar"'}
+            value={name}
+            onChangeText={setName}
+            hint="Leave empty to use the auto-generated number only."
+            returnKeyType="done"
+            onSubmitEditing={go}
+            leading={<Ionicons name="pricetag-outline" size={18} color={color.textTertiary} />}
+          />
+        </View>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, padding: 24, backgroundColor: 'white', gap: 12 },
-  title: { fontSize: 24, fontWeight: '700' },
-  label: { fontSize: 12, color: '#737373', marginTop: 12, textTransform: 'uppercase' },
-  input: { borderWidth: 1, borderColor: '#d4d4d8', borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: '#111827', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 16 },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
-  cancel: { padding: 12, alignItems: 'center' },
-  cancelText: { color: '#737373', fontSize: 14 },
+  // Floating glass nav — inset from the edges so WarmCanvas wraps the corners.
+  hdrPad: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.xs,
+    paddingBottom: space.sm,
+  },
+  hdrInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+    minHeight: 60,
+  },
+
+  // Hero — transparent, sits directly on the warm canvas.
+  heroPad: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
+    gap: space.sm,
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: palette.saffron50,
+    borderWidth: 1,
+    borderColor: palette.saffron100,
+  },
+  heroBadgeText: {
+    color: palette.saffron600,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    color: color.textPrimary,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: fontWeight.heavy,
+    letterSpacing: -0.5,
+    marginTop: space.xs,
+  },
+  heroTitleAccent: {
+    color: palette.saffron600,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: fontWeight.heavy,
+  },
+  heroSubtitle: {
+    color: color.textSecondary,
+    fontSize: 15,
+    lineHeight: 21,
+    maxWidth: 340,
+    marginTop: 2,
+  },
+
+  // Solid form surface — quiet so the TextField does the talking.
+  formPad: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+  },
+  card: {
+    backgroundColor: color.surface,
+    borderRadius: radius.xl,
+    padding: space.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.border,
+    ...shadow.sm,
+  },
+
+  // Glass footer action bar — houses the paired Cancel / Open CTA.
+  actionBar: {
+    flexDirection: 'row',
+    gap: space.sm,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+  },
 });

@@ -10,7 +10,13 @@ export type MutationType =
   | 'add_item'
   | 'update_item'
   | 'remove_item'
-  | 'close_komanda';
+  | 'close_komanda'
+  | 'upsert_product'
+  | 'delete_product'
+  | 'upsert_variant'
+  | 'delete_variant'
+  | 'upsert_modifier'
+  | 'delete_modifier';
 
 export interface QueuedMutation<P = unknown> {
   id: string;
@@ -87,4 +93,21 @@ export async function markFailed(
 
 export async function getAll(store: QueueStore): Promise<QueuedMutation[]> {
   return store.read();
+}
+
+/**
+ * Resets attempt counters for the given ids (or all entries if omitted) so
+ * the processor will pick them up again. Used by the "Retry now" action on
+ * the stuck-mutations banner after a transient failure.
+ */
+export async function resetAttempts(
+  store: QueueStore,
+  ids?: string[],
+): Promise<void> {
+  const all = await store.read();
+  const idSet = ids ? new Set(ids) : null;
+  const next = all.map((m) =>
+    !idSet || idSet.has(m.id) ? { ...m, attemptCount: 0, lastError: null } : m,
+  );
+  await store.write(next);
 }
