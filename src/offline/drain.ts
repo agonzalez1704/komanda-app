@@ -5,6 +5,7 @@ import { useOnline } from './network';
 import { drainQueue } from './processor';
 import { handlers, queueStore } from './handlers';
 import type { MutationType } from './queue';
+import { ensureFreshAccessToken } from '@/insforge/refresh';
 
 let draining = false;
 let pending = false;
@@ -63,6 +64,13 @@ async function runDrain() {
   }
   draining = true;
   try {
+    // The SDK's postgrest fetch (used for every db insert/select/RPC) reads
+    // the access token from `tokenManager.getAccessToken()` and dispatches a
+    // raw fetch — bypassing the HttpClient's auto-refresh-on-401 path. So
+    // when an access token expires mid-session, every queued mutation 401s
+    // until the user signs out and back in. Preflight here keeps the token
+    // ahead of expiry so the drain itself doesn't surface "Invalid token".
+    await ensureFreshAccessToken();
     const { synced } = await drainQueue(queueStore, handlers);
     if (synced.size > 0) {
       const matchers = affectedQueryKeys(synced);
