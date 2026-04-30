@@ -99,15 +99,19 @@ alter table public.invitations
 
 -- ---------------------------------------------------------------------------
 -- 5. Indexes.
+--    `token` is already covered by the unique constraint's implicit index
+--    (see 0001_schema.sql: `token text not null unique`); we only add the
+--    composite for the admin "list pending invites by org" query.
 -- ---------------------------------------------------------------------------
 
-create index if not exists invitations_token_idx      on public.invitations(token);
 create index if not exists invitations_org_status_idx on public.invitations(org_id, status);
 
 -- ---------------------------------------------------------------------------
 -- 6. RLS policies for invitations.
---    - admin-of-same-org full read+write (replaces the old admin policies)
---    - public select-by-token so the accept-invite preview works unauthenticated
+--    Admin-of-same-org has full read+write. We do NOT add a public/anon SELECT
+--    policy: a `using (token is not null)` would let anon enumerate every row.
+--    The accept-invite preview reads via the `lookup_invitation(p_token)` RPC
+--    below, which is `security definer` and only returns one row at a time.
 -- ---------------------------------------------------------------------------
 
 -- Make sure RLS is on (idempotent; matches 0002_rls.sql).
@@ -130,13 +134,6 @@ create policy invitations_all_admin on public.invitations
   with check (
     org_id = public.current_org_id() and public.current_org_role() = 'admin'
   );
-
--- Public select-by-token. The token itself is the credential; the table holds
--- only email + role + status, no other PII. Allowing anon read by token is
--- what the accept-invite preview screen needs before sign-in.
-create policy invitations_select_by_token on public.invitations
-  for select
-  using (token is not null);
 
 -- ---------------------------------------------------------------------------
 -- 7. RLS additions on organization_members: admins UPDATE/DELETE in their org.
@@ -214,16 +211,23 @@ begin
   end if;
 
   -- Insert membership using the invitation's role.
-  -- display_name defaults to the invitation email; the client updates it
-  -- after redeem with the user's chosen display name.
-  insert into public.organization_members (auth_user_id, org_id, role, display_name)
-  values (
-    v_uid,
-    v_invitation.org_id,
-    v_invitation.role,
-    v_invitation.email::text
-  )
-  returning * into v_member;
+  -- display_name defaults to the invitation email; the client overwrites it
+  -- afterward with the user's chosen display name. The exception handler
+  -- catches the rare race where a concurrent redeem won the membership-
+  -- existence check and committed first; without it the caller would see a
+  -- raw 23505 instead of `already_member`.
+  begin
+    insert into public.organization_members (auth_user_id, org_id, role, display_name)
+    values (
+      v_uid,
+      v_invitation.org_id,
+      v_invitation.role,
+      v_invitation.email::text
+    )
+    returning * into v_member;
+  exception when unique_violation then
+    raise exception 'already_member';
+  end;
 
   -- Mark invitation accepted.
   update public.invitations
@@ -237,3 +241,37 @@ end;
 $$;
 
 grant execute on function public.redeem_invitation(text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 9. lookup_invitation RPC: anon-callable preview of a single invitation by
+--    token. Returns only the fields the accept-invite screen needs (no
+--    `created_by`, no `accepted_*`). `security definer` lets us bypass RLS
+--    for this single row without opening the whole table to anon SELECTs.
+-- ---------------------------------------------------------------------------
+
+create or replace function public.lookup_invitation(p_token text)
+returns table (
+  org_id      uuid,
+  org_name    text,
+  role        text,
+  email       text,
+  status      text,
+  expires_at  timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select i.org_id,
+         o.name        as org_name,
+         i.role,
+         i.email::text as email,
+         i.status,
+         i.expires_at
+    from public.invitations i
+    join public.organizations o on o.id = i.org_id
+    where i.token = p_token
+    limit 1;
+$$;
+
+grant execute on function public.lookup_invitation(text) to anon, authenticated;
