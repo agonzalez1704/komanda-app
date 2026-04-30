@@ -30,14 +30,19 @@ create unique index if not exists audit_periods_one_open_per_org
 -- 2. Backfill: ensure every org has an open period, attach existing komandas.
 -- ---------------------------------------------------------------------------
 
--- For every org without an open period, insert one. Pick any admin as opener.
+-- For every org without an open period, insert one. Prefer an admin as
+-- opener; fall back to any member so orgs without an admin don't get
+-- stranded with komandas.period_id permanently nullable. Opener identity
+-- here is for audit only — no role gating depends on it.
 insert into public.audit_periods (org_id, status, opened_at, opened_by_auth_user_id)
 select o.id, 'open', now(), m.auth_user_id
   from public.organizations o
   join lateral (
     select auth_user_id
       from public.organization_members
-      where org_id = o.id and role = 'admin'
+      where org_id = o.id
+      order by case role when 'admin' then 0 when 'cashier' then 1 else 2 end,
+               created_at
       limit 1
   ) m on true
   where not exists (
@@ -126,9 +131,13 @@ create table if not exists public.expenses (
   updated_at               timestamptz not null default now(),
   local_uuid               uuid not null,
   unique (org_id, local_uuid),
+  -- Mutually exclusive: a saved category XOR an "other" free-text label.
+  -- Sending both is rejected so audit aggregation by category_id never has
+  -- to disambiguate which side wins.
   check (
-    (category_id is not null) or
-    (category_other_label is not null and length(trim(category_other_label)) > 0)
+    (category_id is not null and category_other_label is null) or
+    (category_id is null and category_other_label is not null
+       and length(trim(category_other_label)) > 0)
   )
 );
 
@@ -316,7 +325,10 @@ begin
     raise exception 'period_not_closed';
   end if;
 
-  -- Lock the current open period for the same org.
+  -- Lock the current open period for the same org. If there is none (rare —
+  -- can happen if a prior close_day failed mid-flight, leaving an org with
+  -- zero open periods), fall through and just flip the target back to open;
+  -- the partial unique index will be satisfied either way.
   select * into v_current
     from public.audit_periods
     where org_id = v_target.org_id and status = 'open'
