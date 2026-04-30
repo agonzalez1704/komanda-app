@@ -98,10 +98,10 @@ export default function TeamScreen() {
   }
 
   async function handleCopy(inv: InvitationRowT) {
-    // Native clipboard is excluded from the dev client; reshare via the OS
-    // share sheet so the user can pick clipboard / messages / etc.
+    // Share only the code so paste targets get a clean string ready for the
+    // accept-invite screen.
     try {
-      await Share.share({ message: `Join our team. Invite code: ${inv.token}` });
+      await Share.share({ message: inv.token });
     } catch {
       // user-cancelled share — ignore
     }

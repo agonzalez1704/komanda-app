@@ -1,3 +1,8 @@
+import { Button, Text } from '@/components/ui';
+import type { RoleT } from '@/insforge/schemas';
+import { useInviteMember } from '@/mutations/useInviteMember';
+import { color, radius, space } from '@/theme/tokens';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   Alert,
@@ -7,11 +12,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Button, Text } from '@/components/ui';
-import { color, radius, space } from '@/theme/tokens';
-import { useInviteMember } from '@/mutations/useInviteMember';
-import type { RoleT } from '@/insforge/schemas';
 
 const ROLES: RoleT[] = ['admin', 'cashier', 'waiter', 'cook'];
 
@@ -44,8 +44,11 @@ export function InviteSheet({ orgId, onClose }: Props) {
 
   async function handleShare() {
     if (!code) return;
+    // Send only the code so Copy/Messages/etc. paste exactly the code with no
+    // surrounding text. The accept-invite screen takes a raw code; any extra
+    // chars would force the recipient to clean it up before pasting.
     try {
-      await Share.share({ message: `Join our team. Invite code: ${code}` });
+      await Share.share({ message: code });
     } catch {
       // user-cancelled share — ignore
     }
@@ -127,23 +130,14 @@ export function InviteSheet({ orgId, onClose }: Props) {
             <Text variant="bodySm">
               Share this code with your teammate. It expires in 7 days.
             </Text>
-            <View style={styles.codeBox}>
-              <Text
-                selectable
-                align="center"
-                style={{
-                  fontSize: 28,
-                  fontWeight: '700',
-                  letterSpacing: 4,
-                  color: color.textPrimary,
-                }}
-              >
+            <Pressable onPress={handleShare} style={styles.codeBox}>
+              <Text selectable align="center" style={styles.codeText}>
                 {code}
               </Text>
               <Text variant="caption" align="center" style={{ marginTop: space.xs }}>
-                Long-press the code to copy.
+                Tap to share · long-press to select
               </Text>
-            </View>
+            </Pressable>
             <Button
               label="Share"
               variant="secondary"
@@ -213,9 +207,18 @@ const styles = StyleSheet.create({
   },
   codeBox: {
     backgroundColor: color.surfaceAlt,
-    padding: space.lg,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
     borderRadius: radius.md,
     marginVertical: space.lg,
+  },
+  codeText: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: 4,
+    lineHeight: 40,
+    includeFontPadding: false,
+    color: color.textPrimary,
   },
   dismiss: {
     paddingVertical: space.md,
