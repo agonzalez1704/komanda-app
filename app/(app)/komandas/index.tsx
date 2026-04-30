@@ -61,7 +61,10 @@ export default function KomandasList() {
     return <Redirect href="/(app)/settings" />;
   }
 
-  const showSummary = !isLoading && komandas.length > 0;
+  // Revenue/summary cards expose money totals — gated to roles that can view
+  // audit (admin + cashier). Waiters and cooks see only the komandas list.
+  const showSummary =
+    !isLoading && komandas.length > 0 && !!me && can.viewAudit(me.role);
 
   function openKomanda(k: KomandaRowT) {
     const href = `/(app)/komandas/${k.id}` as const;
