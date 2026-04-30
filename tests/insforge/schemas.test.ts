@@ -11,6 +11,7 @@ describe('KomandaRow', () => {
     const parsed = KomandaRow.parse({
       id: '11111111-1111-1111-a111-111111111111',
       org_id: '22222222-2222-4222-a222-222222222222',
+      period_id: '55555555-5555-4555-a555-555555555555',
       number: null,
       display_name: null,
       status: 'open',
