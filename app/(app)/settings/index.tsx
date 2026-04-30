@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { insforge, clearToken } from '@/insforge/client';
 import { fetchMyMembership } from '@/insforge/queries/membership';
 import { resetCreateKomandaContext } from '@/offline/handlers/createKomanda';
+import { can } from '@/auth/permissions';
 import { Button, Card, Divider, Screen, ScreenHeader, Text } from '@/components/ui';
 import { color, fontWeight, radius, space } from '@/theme/tokens';
 
@@ -62,16 +63,20 @@ export default function Settings() {
       <View style={styles.section}>
         <Text variant="label" style={styles.sectionLabel}>Management</Text>
         <Card padded={false}>
-          <Link href="/(app)/menu" asChild>
-            <NavRow
-              icon="restaurant-outline"
-              label="Menu"
-              hint="Products, variants, and modifiers"
-            />
-          </Link>
+          {membership && can.manageMenu(membership.role) ? (
+            <Link href="/(app)/menu" asChild>
+              <NavRow
+                icon="restaurant-outline"
+                label="Menu"
+                hint="Products, variants, and modifiers"
+              />
+            </Link>
+          ) : null}
           {membership?.role === 'admin' ? (
             <>
-              <Divider style={{ marginLeft: 52 }} />
+              {can.manageMenu(membership.role) ? (
+                <Divider style={{ marginLeft: 52 }} />
+              ) : null}
               <Link href="/(app)/settings/team" asChild>
                 <NavRow
                   icon="people-outline"

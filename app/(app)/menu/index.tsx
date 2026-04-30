@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   ActivityIndicator,
@@ -11,6 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { fetchAllProducts, fetchAllVariants } from '@/insforge/queries/menu';
+import { fetchMyMembership } from '@/insforge/queries/membership';
+import { can } from '@/auth/permissions';
 import { formatMXN } from '@/domain/money';
 import type { ProductRowT, VariantRowT } from '@/insforge/schemas';
 import {
@@ -35,6 +37,15 @@ type Section = { category: string; products: ProductRowT[] };
 
 export default function MenuIndex() {
   const router = useRouter();
+  // Route guard: cooks/waiters should not be able to deep-link into menu
+  // management even if the Settings nav row is hidden. Same query key as the
+  // (app) layout — by the time this screen mounts the layout has already
+  // gated on `membership.data === null`, so `me` is reliably non-null here,
+  // but we keep the `me &&` check for safety.
+  const { data: me } = useQuery({
+    queryKey: ['membership'],
+    queryFn: fetchMyMembership,
+  });
   const products = useQuery({
     queryKey: ['products', 'all'],
     queryFn: fetchAllProducts,
@@ -43,6 +54,8 @@ export default function MenuIndex() {
     queryKey: ['variants', 'all'],
     queryFn: fetchAllVariants,
   });
+
+  if (me && !can.manageMenu(me.role)) return <Redirect href="/(app)/komandas" />;
 
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
