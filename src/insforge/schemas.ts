@@ -9,11 +9,13 @@ export const OrganizationRow = z.object({
   created_at: iso,
 });
 
+const Role = z.enum(['admin', 'cashier', 'waiter', 'cook']);
+
 export const OrganizationMemberRow = z.object({
   id: uuid,
   auth_user_id: uuid,
   org_id: uuid,
-  role: z.enum(['admin', 'member']),
+  role: Role,
   display_name: z.string(),
   created_at: iso,
 });
@@ -22,13 +24,17 @@ export const InvitationRow = z.object({
   id: uuid,
   org_id: uuid,
   email: z.string().email(),
-  role: z.enum(['admin', 'member']),
+  role: Role,
   token: z.string(),
+  status: z.enum(['pending', 'accepted', 'revoked', 'expired']),
   expires_at: iso,
   accepted_at: iso.nullable(),
+  accepted_by_auth_user_id: uuid.nullable(),
   created_by_auth_user_id: uuid,
   created_at: iso,
 });
+
+export type RoleT = z.infer<typeof Role>;
 
 export const ProductRow = z.object({
   id: uuid,

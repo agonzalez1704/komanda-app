@@ -31,9 +31,9 @@ describe('KomandaRow', () => {
 });
 
 describe('OrganizationMemberRow', () => {
-  it('accepts admin and member roles', () => {
-    for (const role of ['admin', 'member'] as const) {
-      expect(() =>
+  it('accepts admin/cashier/waiter/cook roles', () => {
+    for (const role of ['admin', 'cashier', 'waiter', 'cook'] as const) {
+      expect(
         OrganizationMemberRow.parse({
           id: '11111111-1111-4111-a111-111111111111',
           auth_user_id: '22222222-2222-4222-a222-222222222222',
@@ -41,9 +41,22 @@ describe('OrganizationMemberRow', () => {
           role,
           display_name: 'Juan',
           created_at: '2026-04-20T00:00:00.000Z',
-        })
-      ).not.toThrow();
+        }).role
+      ).toBe(role);
     }
+  });
+
+  it('rejects legacy member role', () => {
+    expect(() =>
+      OrganizationMemberRow.parse({
+        id: '11111111-1111-4111-a111-111111111111',
+        auth_user_id: '22222222-2222-4222-a222-222222222222',
+        org_id: '33333333-3333-4333-a333-333333333333',
+        role: 'member',
+        display_name: 'Juan',
+        created_at: '2026-04-20T00:00:00.000Z',
+      })
+    ).toThrow();
   });
 });
 
