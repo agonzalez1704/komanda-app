@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { insforge, clearToken } from '@/insforge/client';
@@ -12,6 +12,7 @@ import { color, fontWeight, radius, space } from '@/theme/tokens';
 
 export default function Settings() {
   const router = useRouter();
+  const qc = useQueryClient();
   const { data: membership } = useQuery({
     queryKey: ['membership'],
     queryFn: fetchMyMembership,
@@ -21,6 +22,9 @@ export default function Settings() {
     await clearToken();
     resetCreateKomandaContext();
     await insforge.auth.signOut();
+    // Drop every cached query so the next user doesn't inherit this one's
+    // membership / komandas / audit data from the persisted cache.
+    qc.clear();
     router.replace('/(auth)/sign-in');
   }
 
