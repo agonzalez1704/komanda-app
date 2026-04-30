@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui';
 import { formatMXN } from '@/domain/money';
@@ -217,21 +218,42 @@ export function KomandaTicket(props: KomandaTicketProps) {
           )}
         </View>
 
-        {/* 5. Booking strip (Booking / Waiter / Payment) */}
+        {/* 5. Booking strip (Booking / Waiter / Payment) — glass tiles
+            mirror RevenueCard's HeroStat: BlurView absoluteFill with a
+            faint white background so the tile reads as frosted glass over
+            the warm gradient. */}
         <View style={styles.metaStrip}>
-          <View style={styles.metaCol}>
+          <View style={styles.metaTile}>
+            <BlurView
+              tint="light"
+              intensity={60}
+              style={StyleSheet.absoluteFillObject}
+              experimentalBlurMethod="dimezisBlurView"
+            />
             <Text style={styles.metaLabel}>Booking</Text>
             <Text mono style={styles.metaValue} numberOfLines={1}>
               {bookingRef}
             </Text>
           </View>
-          <View style={[styles.metaCol, styles.metaColMid]}>
+          <View style={styles.metaTile}>
+            <BlurView
+              tint="light"
+              intensity={60}
+              style={StyleSheet.absoluteFillObject}
+              experimentalBlurMethod="dimezisBlurView"
+            />
             <Text style={styles.metaLabel}>Waiter</Text>
             <Text style={styles.metaValue} numberOfLines={1}>
               {waiterName}
             </Text>
           </View>
-          <View style={[styles.metaCol, { alignItems: 'flex-end' }]}>
+          <View style={styles.metaTile}>
+            <BlurView
+              tint="light"
+              intensity={60}
+              style={StyleSheet.absoluteFillObject}
+              experimentalBlurMethod="dimezisBlurView"
+            />
             <Text style={styles.metaLabel}>Payment</Text>
             <Text style={styles.metaValue} numberOfLines={1}>
               {paymentMethod ? PAYMENT_LABEL[paymentMethod] : '—'}
@@ -437,24 +459,27 @@ const styles = StyleSheet.create({
   // Meta strip
   metaStrip: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     marginTop: 18,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-    gap: space.sm,
+    gap: 8,
   },
-  metaCol: {
+  metaTile: {
     flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     gap: 2,
   },
-  metaColMid: { alignItems: 'center' },
   metaLabel: {
     fontSize: 10,
     fontWeight: fontWeight.bold,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.72)',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.6,
   },
   metaValue: {
     fontSize: 14,
