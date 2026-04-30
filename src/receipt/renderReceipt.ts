@@ -13,11 +13,17 @@ export interface ReceiptItem {
 export interface ReceiptData {
   orgName: string;
   identifier: string;
+  /** Optional customer label (komanda.display_name). */
+  customerLabel?: string | null;
   waiterName: string;
   openedAtIso: string;
+  /** Optional. When omitted, current time is used (e.g. close-flow snapshot). */
+  closedAtIso?: string | null;
   items: ReceiptItem[];
   totalCents: number;
   paymentMethod: PaymentMethodT;
+  /** Short, deterministic id (e.g. komanda.id.split('-')[0].toUpperCase()). */
+  bookingRef: string;
 }
 
 const PAYMENT_ES: Record<PaymentMethodT, string> = {
@@ -58,6 +64,8 @@ export function renderReceipt(d: ReceiptData): string {
     })
     .join('');
 
+  const heading = d.customerLabel && d.customerLabel.length > 0 ? d.customerLabel : d.orgName;
+
   return `<!doctype html>
 <html><head><meta charset="utf-8"/><style>
   @page { margin: 0; size: 80mm auto; }
@@ -73,13 +81,17 @@ export function renderReceipt(d: ReceiptData): string {
   .totals { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; margin-top: 6px; }
   .iva { font-size: 10px; text-align: right; color: #555; }
   .pay { margin-top: 4px; font-size: 12px; }
+  .ref { margin-top: 4px; font-size: 11px; }
   .thanks { text-align: center; margin-top: 10px; }
 </style></head>
 <body>
-  <h1>${esc(d.orgName)}</h1>
+  <h1>${esc(heading)}</h1>
+  <div class="meta">
+    <span>${esc(d.orgName)}</span>
+    <span>${esc(stamp)}</span>
+  </div>
   <div class="meta">
     <span>${esc(d.identifier)}</span>
-    <span>${esc(stamp)}</span>
   </div>
   <div>Atendió: ${esc(d.waiterName)}</div>
   <hr/>
@@ -88,6 +100,7 @@ export function renderReceipt(d: ReceiptData): string {
   <div class="totals"><span>TOTAL</span><span>${formatMXN(d.totalCents)}</span></div>
   <div class="iva">IVA incluido</div>
   <div class="pay">Pago: ${PAYMENT_ES[d.paymentMethod]}</div>
+  <div class="ref">Booking: ${esc(d.bookingRef)}</div>
   <hr/>
   <div class="thanks">¡Gracias por su visita!</div>
 </body></html>`;
