@@ -33,7 +33,10 @@ export default function Settings() {
 
   const showMenu = !!membership && can.manageMenu(membership.role);
   const showTeam = membership?.role === 'admin';
-  const showManagement = showMenu || showTeam;
+  const showAuditHistory = !!membership && can.viewAudit(membership.role);
+  const showExpenseCategories = membership?.role === 'admin';
+  const showManagement =
+    showMenu || showTeam || showAuditHistory || showExpenseCategories;
 
   return (
     <Screen scrollable padded={false} contentContainerStyle={{ gap: space.lg, paddingBottom: space.xxl }}>
@@ -85,6 +88,34 @@ export default function Settings() {
                     icon="people-outline"
                     label="Team"
                     hint="Members and pending invites"
+                  />
+                </Link>
+              </>
+            ) : null}
+            {showAuditHistory ? (
+              <>
+                {showMenu || showTeam ? (
+                  <Divider style={{ marginLeft: 52 }} />
+                ) : null}
+                <Link href={'/(app)/settings/audit-history' as any} asChild>
+                  <NavRow
+                    icon="time-outline"
+                    label="Audit history"
+                    hint="Closed periods"
+                  />
+                </Link>
+              </>
+            ) : null}
+            {showExpenseCategories ? (
+              <>
+                {showMenu || showTeam || showAuditHistory ? (
+                  <Divider style={{ marginLeft: 52 }} />
+                ) : null}
+                <Link href={'/(app)/settings/expense-categories' as any} asChild>
+                  <NavRow
+                    icon="pricetags-outline"
+                    label="Expense categories"
+                    hint="Manage categories"
                   />
                 </Link>
               </>
