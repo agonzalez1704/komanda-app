@@ -69,6 +69,18 @@ export default function Settings() {
               hint="Products, variants, and modifiers"
             />
           </Link>
+          {membership?.role === 'admin' ? (
+            <>
+              <Divider style={{ marginLeft: 52 }} />
+              <Link href="/(app)/settings/team" asChild>
+                <NavRow
+                  icon="people-outline"
+                  label="Team"
+                  hint="Members and pending invites"
+                />
+              </Link>
+            </>
+          ) : null}
         </Card>
       </View>
 
