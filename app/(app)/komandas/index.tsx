@@ -13,6 +13,8 @@ import { TopBar } from '@/features/komandas-list/components/TopBar';
 import { useKomandasData } from '@/features/komandas-list/hooks/useKomandasData';
 import { useKomandasFilter } from '@/features/komandas-list/hooks/useKomandasFilter';
 import { useKomandasTotals } from '@/features/komandas-list/hooks/useKomandasTotals';
+import { useWaiterStats } from '@/features/komandas-list/hooks/useWaiterStats';
+import { WaiterStatsCard } from '@/features/komandas-list/components/WaiterStatsCard';
 import { usePullRefresh } from '@/features/komandas-list/hooks/usePullRefresh';
 import {
   emptySubtitleFor,
@@ -50,6 +52,7 @@ export default function KomandasList() {
     filtered,
   } = useKomandasFilter(komandas);
   const totals = useKomandasTotals(komandas, statsById, today);
+  const waiterStats = useWaiterStats(komandas, statsById, today, me?.auth_user_id ?? null);
   const dateLabel = useMemo(() => formatDateLong(today), [today]);
 
   const sections = useMemo(
@@ -61,10 +64,14 @@ export default function KomandasList() {
     return <Redirect href="/(app)/settings" />;
   }
 
-  // Revenue/summary cards expose money totals — gated to roles that can view
-  // audit (admin + cashier). Waiters and cooks see only the komandas list.
-  const showSummary =
-    !isLoading && komandas.length > 0 && !!me && can.viewAudit(me.role);
+  // RevenueCard exposes money totals — admin/cashier only. Waiters get a
+  // money-free WaiterStatsCard with shift-relevant counts in the same slot.
+  const isReady = !isLoading && komandas.length > 0;
+  const showAuditSummary = isReady && !!me && can.viewAudit(me.role);
+  const showWaiterCard = isReady && !!me && !can.viewAudit(me.role) && can.workKomanda(me.role);
+  // FilterBar shares the audit-summary visibility (it surfaces totals.active
+  // / totals.closed / totals.all that are org-wide, not waiter-specific).
+  const showSummary = showAuditSummary;
 
   function openKomanda(k: KomandaRowT) {
     const href = `/(app)/komandas/${k.id}` as const;
@@ -96,6 +103,16 @@ export default function KomandasList() {
           closedCount={totals.dayClosed}
           activeCount={totals.active}
           itemsSold={totals.itemsSold}
+        />
+      ) : null}
+
+      {showWaiterCard ? (
+        <WaiterStatsCard
+          displayName={me?.display_name ?? null}
+          activeMine={waiterStats.activeMine}
+          oldestOpenAgeMs={waiterStats.oldestOpenAgeMs}
+          closedToday={waiterStats.closedToday}
+          itemsAddedToday={waiterStats.itemsAddedToday}
         />
       ) : null}
 
