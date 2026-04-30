@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -96,7 +98,11 @@ export function AddExpenseSheet({ orgId, periodId, onClose }: Props) {
   const cats = categories.data ?? [];
 
   return (
-    <View style={styles.backdrop}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.backdrop}
+      pointerEvents="box-none"
+    >
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
@@ -223,7 +229,7 @@ export function AddExpenseSheet({ orgId, periodId, onClose }: Props) {
           </Pressable>
         </ScrollView>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
