@@ -1,13 +1,13 @@
 import { aggregateAudit } from '@/domain/audit';
 
-const k = (over: Partial<any> = {}) => ({
+const k = (over: Partial<any> = {}): any => ({
   id: 'k', status: 'closed', payment_method: 'cash', total_cents: 1000,
   opened_by_auth_user_id: 'u1',
   items: [{ product_category: 'Drinks', subtotal_cents: 1000 }],
   ...over,
 });
 
-const e = (over: Partial<any> = {}) => ({
+const e = (over: Partial<any> = {}): any => ({
   id: 'e', amount_cents: 200, paid_by: 'cash', category_id: 'c1',
   category_other_label: null, voided: false,
   ...over,
