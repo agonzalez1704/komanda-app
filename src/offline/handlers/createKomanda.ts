@@ -2,6 +2,7 @@ import { insforge } from '@/insforge/client';
 import type { QueuedMutation } from '@/offline/queue';
 import { rememberSync, type LocalStore } from '@/offline/localStore';
 import { fetchMyMembership } from '@/insforge/queries/membership';
+import { fetchOpenPeriod } from '@/insforge/queries/auditPeriods';
 
 export interface CreateKomandaPayload {
   local_uuid: string;
@@ -63,6 +64,12 @@ export function createKomandaHandler(deps: {
     // with a clear message instead of a cryptic RLS reject.
     const ctx = await resolve();
 
+    // Stamp the komanda with the org's currently-open audit period. The
+    // schema enforces NOT NULL on period_id, so we resolve it at sync time
+    // (rather than at queue time) to make sure we land in the period that's
+    // open *now* — even if the queue sat through a day-close.
+    const period = await fetchOpenPeriod(ctx.orgId);
+
     const { data: number, error: rpcErr } = await insforge.database.rpc('next_komanda_number', {
       p_date: yyyyMmDd(payload.opened_at),
     });
@@ -72,6 +79,7 @@ export function createKomandaHandler(deps: {
       .from('komandas')
       .insert({
         org_id: ctx.orgId,
+        period_id: period.id,
         opened_by_auth_user_id: ctx.authUserId,
         number,
         display_name: payload.display_name,
