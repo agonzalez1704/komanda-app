@@ -11,7 +11,6 @@ import {
 import { useAcceptInvitation } from '@/mutations/useAcceptInvitation';
 import { useSession } from '@/insforge/session';
 import { insforge, persistSession } from '@/insforge/client';
-import { fetchMyMembership } from '@/insforge/queries/membership';
 
 /**
  * Public deep-link target for invite acceptance.
@@ -74,27 +73,18 @@ export default function AcceptInviteScreen() {
     }
   }
 
-  async function applyDisplayName() {
-    if (!displayName.trim()) return;
-    const me = await fetchMyMembership();
-    if (me) {
-      await insforge.database
-        .from('organization_members')
-        .update({ display_name: displayName.trim() })
-        .eq('id', me.id);
-    }
-  }
-
   async function joinSignedIn() {
     if (!preview) return;
-    accept.mutate(code.trim().toUpperCase(), {
-      onSuccess: async () => {
-        await applyDisplayName();
-        qc.invalidateQueries({ queryKey: ['membership'] });
-        router.replace('/(app)/komandas');
+    accept.mutate(
+      { token: code.trim().toUpperCase(), displayName: displayName.trim() || undefined },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ['membership'] });
+          router.replace('/(app)/komandas');
+        },
+        onError: (e) => Alert.alert('Could not join', String((e as Error).message)),
       },
-      onError: (e) => Alert.alert('Could not join', String((e as Error).message)),
-    });
+    );
   }
 
   async function signUpAndJoin() {
@@ -142,8 +132,10 @@ export default function AcceptInviteScreen() {
         }
       }
 
-      await accept.mutateAsync(code.trim().toUpperCase());
-      await applyDisplayName();
+      await accept.mutateAsync({
+        token: code.trim().toUpperCase(),
+        displayName: displayName.trim() || undefined,
+      });
       qc.invalidateQueries({ queryKey: ['membership'] });
       router.replace('/(app)/komandas');
     } catch (e) {

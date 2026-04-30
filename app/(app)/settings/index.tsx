@@ -31,6 +31,10 @@ export default function Settings() {
     .map((w) => w[0]?.toUpperCase())
     .join('');
 
+  const showMenu = !!membership && can.manageMenu(membership.role);
+  const showTeam = membership?.role === 'admin';
+  const showManagement = showMenu || showTeam;
+
   return (
     <Screen scrollable padded={false} contentContainerStyle={{ gap: space.lg, paddingBottom: space.xxl }}>
       <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm }}>
@@ -60,34 +64,34 @@ export default function Settings() {
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text variant="label" style={styles.sectionLabel}>Management</Text>
-        <Card padded={false}>
-          {membership && can.manageMenu(membership.role) ? (
-            <Link href="/(app)/menu" asChild>
-              <NavRow
-                icon="restaurant-outline"
-                label="Menu"
-                hint="Products, variants, and modifiers"
-              />
-            </Link>
-          ) : null}
-          {membership?.role === 'admin' ? (
-            <>
-              {can.manageMenu(membership.role) ? (
-                <Divider style={{ marginLeft: 52 }} />
-              ) : null}
-              <Link href="/(app)/settings/team" asChild>
+      {showManagement ? (
+        <View style={styles.section}>
+          <Text variant="label" style={styles.sectionLabel}>Management</Text>
+          <Card padded={false}>
+            {showMenu ? (
+              <Link href="/(app)/menu" asChild>
                 <NavRow
-                  icon="people-outline"
-                  label="Team"
-                  hint="Members and pending invites"
+                  icon="restaurant-outline"
+                  label="Menu"
+                  hint="Products, variants, and modifiers"
                 />
               </Link>
-            </>
-          ) : null}
-        </Card>
-      </View>
+            ) : null}
+            {showTeam ? (
+              <>
+                {showMenu ? <Divider style={{ marginLeft: 52 }} /> : null}
+                <Link href="/(app)/settings/team" asChild>
+                  <NavRow
+                    icon="people-outline"
+                    label="Team"
+                    hint="Members and pending invites"
+                  />
+                </Link>
+              </>
+            ) : null}
+          </Card>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text variant="label" style={styles.sectionLabel}>Account</Text>

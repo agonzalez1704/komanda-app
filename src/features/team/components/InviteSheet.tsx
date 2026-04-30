@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { Button, Text } from '@/components/ui';
 import { color, radius, space } from '@/theme/tokens';
 import { useInviteMember } from '@/mutations/useInviteMember';
@@ -41,11 +40,6 @@ export function InviteSheet({ orgId, onClose }: Props) {
           Alert.alert('Could not create invite', String((e as Error).message)),
       },
     );
-  }
-
-  async function handleCopy() {
-    if (!code) return;
-    await Clipboard.setStringAsync(code);
   }
 
   async function handleShare() {
@@ -135,6 +129,7 @@ export function InviteSheet({ orgId, onClose }: Props) {
             </Text>
             <View style={styles.codeBox}>
               <Text
+                selectable
                 align="center"
                 style={{
                   fontSize: 28,
@@ -145,19 +140,10 @@ export function InviteSheet({ orgId, onClose }: Props) {
               >
                 {code}
               </Text>
+              <Text variant="caption" align="center" style={{ marginTop: space.xs }}>
+                Long-press the code to copy.
+              </Text>
             </View>
-            <Button
-              label="Copy code"
-              variant="secondary"
-              onPress={handleCopy}
-              leadingIcon={
-                <Ionicons
-                  name="copy-outline"
-                  size={18}
-                  color={color.textPrimary}
-                />
-              }
-            />
             <Button
               label="Share"
               variant="secondary"

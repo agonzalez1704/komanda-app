@@ -4,7 +4,8 @@ import { redeemInvitation } from '@/insforge/queries/invitations';
 export function useAcceptInvitation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (token: string) => redeemInvitation(token),
+    mutationFn: (input: { token: string; displayName?: string }) =>
+      redeemInvitation(input.token, input.displayName),
     onSuccess: () => {
       // Force layout to re-fetch membership and route into (app).
       qc.invalidateQueries({ queryKey: ['membership'] });

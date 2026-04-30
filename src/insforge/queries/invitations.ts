@@ -78,8 +78,14 @@ export async function lookupInvitation(token: string): Promise<InvitationPreview
   return PreviewSchema.parse(row);
 }
 
-export async function redeemInvitation(token: string): Promise<OrganizationMemberRowT> {
-  const { data, error } = await insforge.database.rpc('redeem_invitation', { p_token: token });
+export async function redeemInvitation(
+  token: string,
+  displayName?: string,
+): Promise<OrganizationMemberRowT> {
+  const { data, error } = await insforge.database.rpc('redeem_invitation', {
+    p_token: token,
+    p_display_name: displayName ?? null,
+  });
   if (error) throw error;
   return OrganizationMemberRow.parse(data);
 }

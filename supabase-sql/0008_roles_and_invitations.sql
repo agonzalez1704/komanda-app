@@ -164,7 +164,10 @@ create policy organization_members_delete_admin on public.organization_members
 --    (client overwrites afterward), marks invitation accepted, returns row.
 -- ---------------------------------------------------------------------------
 
-create or replace function public.redeem_invitation(p_token text)
+-- Drop the prior single-arg signature so create-or-replace doesn't conflict.
+drop function if exists public.redeem_invitation(text);
+
+create or replace function public.redeem_invitation(p_token text, p_display_name text default null)
 returns public.organization_members
 language plpgsql
 security definer
@@ -210,19 +213,22 @@ begin
     raise exception 'already_member';
   end if;
 
-  -- Insert membership using the invitation's role.
-  -- display_name defaults to the invitation email; the client overwrites it
-  -- afterward with the user's chosen display name. The exception handler
-  -- catches the rare race where a concurrent redeem won the membership-
-  -- existence check and committed first; without it the caller would see a
-  -- raw 23505 instead of `already_member`.
+  -- Insert membership atomically with the user-supplied display_name (falls
+  -- back to the invitation email when the caller didn't pass one or sent
+  -- whitespace). Doing this in the RPC instead of as a follow-up UPDATE
+  -- avoids the RLS gap: non-admins have no UPDATE policy on
+  -- organization_members, so a client-side post-redeem update would silently
+  -- be filtered to zero rows.
+  -- The exception handler covers the rare race where a concurrent redeem
+  -- won the membership-existence check and committed first; without it the
+  -- caller would see a raw 23505 instead of `already_member`.
   begin
     insert into public.organization_members (auth_user_id, org_id, role, display_name)
     values (
       v_uid,
       v_invitation.org_id,
       v_invitation.role,
-      v_invitation.email::text
+      coalesce(nullif(trim(p_display_name), ''), v_invitation.email::text)
     )
     returning * into v_member;
   exception when unique_violation then
@@ -240,7 +246,7 @@ begin
 end;
 $$;
 
-grant execute on function public.redeem_invitation(text) to authenticated;
+grant execute on function public.redeem_invitation(text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 9. lookup_invitation RPC: anon-callable preview of a single invitation by

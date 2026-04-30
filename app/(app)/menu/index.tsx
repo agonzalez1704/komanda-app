@@ -55,8 +55,6 @@ export default function MenuIndex() {
     queryFn: fetchAllVariants,
   });
 
-  if (me && !can.manageMenu(me.role)) return <Redirect href="/(app)/komandas" />;
-
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -99,6 +97,12 @@ export default function MenuIndex() {
     () => flatten(sections, collapsed),
     [sections, collapsed],
   );
+
+  // Gate AFTER all hooks have run so React's hook count stays stable across
+  // the membership-loading → loaded transition. Returning before useState /
+  // useMemo above would crash the screen the first time a non-manager opens
+  // it (the loading render runs all hooks, the loaded render skips them).
+  if (me && !can.manageMenu(me.role)) return <Redirect href="/(app)/komandas" />;
 
   const totalProducts = allProducts.length;
   const visibleCount = filteredProducts.length;

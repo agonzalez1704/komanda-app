@@ -3,12 +3,12 @@ import {
   Alert,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import * as Clipboard from 'expo-clipboard';
 import { Card, Divider, Screen, ScreenHeader, Text } from '@/components/ui';
 import { color, radius, space } from '@/theme/tokens';
 import { fetchMyMembership } from '@/insforge/queries/membership';
@@ -98,7 +98,13 @@ export default function TeamScreen() {
   }
 
   async function handleCopy(inv: InvitationRowT) {
-    await Clipboard.setStringAsync(inv.token);
+    // Native clipboard is excluded from the dev client; reshare via the OS
+    // share sheet so the user can pick clipboard / messages / etc.
+    try {
+      await Share.share({ message: `Join our team. Invite code: ${inv.token}` });
+    } catch {
+      // user-cancelled share — ignore
+    }
   }
 
   function handleRemove(member: OrganizationMemberRowT) {
