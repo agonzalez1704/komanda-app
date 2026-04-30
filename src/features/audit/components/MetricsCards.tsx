@@ -83,12 +83,16 @@ const styles = StyleSheet.create({
   },
   bigAmount: {
     fontSize: 32,
+    lineHeight: 42,
+    includeFontPadding: false,
     fontWeight: fontWeight.bold,
     marginTop: space.xs,
     fontVariant: ['tabular-nums'],
   },
   midAmount: {
     fontSize: 22,
+    lineHeight: 30,
+    includeFontPadding: false,
     fontWeight: fontWeight.bold,
     color: color.textPrimary,
     marginTop: space.xs,
