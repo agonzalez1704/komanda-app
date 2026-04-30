@@ -44,6 +44,7 @@ describe('renderReceipt', () => {
     expect(html).toContain('IVA incluido');
     // New ticket-style additions.
     expect(html).toContain('4F3A1B2C');
+    expect(html).toContain('Order receipt');
   });
 
   it('falls back to identifier as heading when customerLabel is null', () => {
