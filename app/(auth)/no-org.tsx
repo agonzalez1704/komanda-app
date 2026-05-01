@@ -26,6 +26,7 @@ export default function NoOrg() {
     await clearToken();
     resetCreateKomandaContext();
     await insforge.auth.signOut();
+    qc.clear();
     router.replace('/(auth)/sign-in');
   }
 

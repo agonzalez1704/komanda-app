@@ -73,6 +73,51 @@ export function attachTokenPersistence(client: HasHttpClient): void {
 }
 
 /**
+ * Hook a listener that fires when the SDK clears its in-memory access token.
+ *
+ * Why this exists: when the SDK's internal refresh fails (refresh token dead),
+ * the request handler clears the in-memory `userToken` / `refreshToken` *by
+ * direct field assignment*, bypassing the wrapped `setAuthToken` / `setRefreshToken`
+ * setters. AsyncStorage therefore keeps the stale pair forever — every cold
+ * start reads it back, every API call 401s, and the queue drain pounds the
+ * server with dead tokens.
+ *
+ * The `tokenManager.clearSession()` call that DOES happen on the failure path
+ * fires `onTokenChange`. We attach to that, detect the null-token transition,
+ * and run `onCleared` — typically wipes AsyncStorage and flips the app into
+ * signed-out state.
+ *
+ * Wraps any pre-existing handler (the SDK's realtime client also subscribes)
+ * so we don't clobber it.
+ */
+export type AuthClearedHookClient = {
+  tokenManager: {
+    onTokenChange: (() => void) | null;
+    getAccessToken: () => string | null;
+  };
+};
+
+export function attachAuthClearedListener(
+  client: AuthClearedHookClient,
+  onCleared: () => void,
+): void {
+  const tm = client.tokenManager;
+  const prev = tm.onTokenChange;
+  tm.onTokenChange = () => {
+    if (prev) {
+      try {
+        prev();
+      } catch {
+        // Swallow: a misbehaving prior subscriber must not block our handler.
+      }
+    }
+    if (tm.getAccessToken() == null) {
+      onCleared();
+    }
+  };
+}
+
+/**
  * Decode a JWT's `exp` (seconds since epoch) and return it as milliseconds.
  * Returns null if the token is malformed or has no `exp` claim. We do NOT
  * verify the signature — this is only used to decide whether to pre-refresh.

@@ -14,13 +14,12 @@ import { announce } from '@/hooks/useReduceMotion';
 import type { KomandaRowT, PaymentMethodT } from '@/insforge/schemas';
 import {
   Button,
-  Card,
-  Divider,
   GlassSurface,
   IconButton,
   Screen,
   Text,
 } from '@/components/ui';
+import { KomandaTicket } from '@/features/komanda-detail/components/KomandaTicket';
 import { color, fontWeight, radius, shadow, space } from '@/theme/tokens';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -82,11 +81,14 @@ export default function Close() {
 
     // Snapshot data we need for the receipt before navigation unmounts this
     // screen's query state.
+    const closedAt = new Date().toISOString();
     const receiptInput = {
       orgName: membership.data.organization.name,
       identifier: displayIdentifier(row),
+      customerLabel: row.display_name,
       waiterName: membership.data.display_name,
       openedAtIso: row.opened_at,
+      closedAtIso: closedAt,
       items: (items.data ?? []).map((it) => ({
         quantity: it.quantity,
         product_name_snapshot: it.product_name_snapshot,
@@ -97,6 +99,7 @@ export default function Close() {
       })),
       totalCents: total,
       paymentMethod: method,
+      bookingRef: row.id.split('-')[0].toUpperCase(),
     };
 
     try {
@@ -104,7 +107,7 @@ export default function Close() {
         komanda_id: id!,
         payment_method: method,
         total_cents: total,
-        closed_at: new Date().toISOString(),
+        closed_at: closedAt,
       });
     } catch (err) {
       // Close itself failed — keep the user here so they can retry.
@@ -177,52 +180,6 @@ export default function Close() {
       </View>
 
       <View style={styles.body}>
-        <Card padded={false}>
-          <View style={styles.receiptHeader}>
-            <Text variant="label">Order summary</Text>
-          </View>
-          <Divider />
-          {(items.data ?? []).map((it, idx, arr) => (
-            <View key={it.id}>
-              <View style={styles.itemRow}>
-                <Text
-                  style={{
-                    width: 32,
-                    fontSize: 14,
-                    fontWeight: fontWeight.bold,
-                    color: color.primary,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {it.quantity}×
-                </Text>
-                <Text style={{ flex: 1 }} variant="body">
-                  {it.product_name_snapshot}
-                  {it.variant_name_snapshot ? ` · ${it.variant_name_snapshot}` : ''}
-                </Text>
-                <Text
-                  variant="bodyStrong"
-                  mono
-                  style={{ fontSize: 15 }}
-                >
-                  {formatMXN(it.quantity * it.unit_price_cents)}
-                </Text>
-              </View>
-              {idx < arr.length - 1 ? <Divider style={{ marginLeft: space.lg }} /> : null}
-            </View>
-          ))}
-        </Card>
-
-        <Card style={styles.totalCard}>
-          <View style={styles.totalRow}>
-            <Text variant="h3">Total</Text>
-            <Text variant="display" mono>
-              {formatMXN(total)}
-            </Text>
-          </View>
-          <Text variant="caption" align="right">IVA incluido</Text>
-        </Card>
-
         <View style={styles.methodBlock}>
           <Text variant="label">Payment method</Text>
           <View style={styles.methodRow}>
@@ -260,6 +217,27 @@ export default function Close() {
             })}
           </View>
         </View>
+
+        <KomandaTicket
+          orgName={membership.data.organization.name}
+          identifier={displayIdentifier(row)}
+          customerLabel={row.display_name}
+          waiterName={membership.data.display_name}
+          openedAtIso={row.opened_at}
+          closedAtIso={null}
+          items={(items.data ?? []).map((it) => ({
+            id: it.id,
+            quantity: it.quantity,
+            product_name_snapshot: it.product_name_snapshot,
+            variant_name_snapshot: it.variant_name_snapshot,
+            unit_price_cents: it.unit_price_cents,
+            modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
+            note_text: it.note_text,
+          }))}
+          totalCents={total}
+          paymentMethod={method}
+          bookingRef={row.id.split('-')[0].toUpperCase()}
+        />
       </View>
     </Screen>
   );

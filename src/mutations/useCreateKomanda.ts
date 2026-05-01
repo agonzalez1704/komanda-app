@@ -18,6 +18,7 @@ export function useCreateKomanda() {
       const optimistic: KomandaRowT = {
         id: local_uuid,
         org_id: '00000000-0000-0000-0000-000000000000',
+        period_id: '00000000-0000-0000-0000-000000000000',
         number: null,
         display_name: input.display_name,
         status: 'open',

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 import { createClient } from '@insforge/sdk';
 import { env } from '@/env';
 import {
@@ -6,10 +7,18 @@ import {
   REFRESH_TOKEN_KEY,
   USER_INFO_KEY,
   accessTokenExpMs,
+  attachAuthClearedListener,
   attachTokenPersistence,
   shouldProactivelyRefresh,
   type CachedUser,
 } from './tokenPersistence';
+
+/**
+ * Fired exactly once per SDK auth-cleared event (refresh-token death). The
+ * session hook listens and re-checks; the layout flips to signed-out and
+ * redirects to sign-in.
+ */
+export const AUTH_CLEARED_EVENT = 'insforge:auth-cleared';
 
 // Re-export so existing callers keep working.
 export {
@@ -33,6 +42,21 @@ export const insforge = createClient({
 // Install persistence once for the app-wide client. The pure logic lives
 // in ./tokenPersistence so tests can exercise it without pulling the SDK.
 attachTokenPersistence(insforge);
+
+// Detect SDK clearing its in-memory tokens (refresh failure). The SDK's
+// failure path nukes its internal fields directly, bypassing setAuthToken,
+// so AsyncStorage would otherwise keep stale tokens forever and every cold
+// start would re-enter the same dead-token loop.
+attachAuthClearedListener(
+  insforge as unknown as { tokenManager: { onTokenChange: (() => void) | null; getAccessToken: () => string | null } },
+  () => {
+    if (__DEV__) {
+      console.warn('[insforge] session cleared — refresh failed; wiping local tokens');
+    }
+    void AsyncStorage.multiRemove([AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_INFO_KEY]);
+    DeviceEventEmitter.emit(AUTH_CLEARED_EVENT);
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Cold-start bootstrap + proactive refresh

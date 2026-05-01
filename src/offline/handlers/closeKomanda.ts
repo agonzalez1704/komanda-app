@@ -1,7 +1,8 @@
 import { insforge } from '@/insforge/client';
-import type { QueuedMutation } from '@/offline/queue';
+import type { QueuedMutation, QueueStore } from '@/offline/queue';
 import { resolveId, type LocalStore } from '@/offline/localStore';
 import type { PaymentMethodT } from '@/insforge/schemas';
+import { DeferredMutationError, getQueuedProducerIds } from './_deps';
 
 export interface CloseKomandaPayload {
   komanda_id: string;
@@ -10,10 +11,18 @@ export interface CloseKomandaPayload {
   closed_at: string;
 }
 
-export function closeKomandaHandler(deps: { localStore: LocalStore }) {
+export function closeKomandaHandler(deps: { localStore: LocalStore; queueStore: QueueStore }) {
   return async function handle(m: QueuedMutation): Promise<void> {
     const p = m.payload as CloseKomandaPayload;
     const id = await resolveId(deps.localStore, p.komanda_id);
+    if (id === p.komanda_id) {
+      const producers = await getQueuedProducerIds(deps.queueStore);
+      if (producers.has(p.komanda_id)) {
+        throw new DeferredMutationError(
+          `close_komanda: waiting on parent komanda ${p.komanda_id} to sync`,
+        );
+      }
+    }
     // `.select()` forces PostgREST to return the updated rows. Without it,
     // an UPDATE that matches 0 rows (because the server id mapping isn't in
     // place yet, or RLS hid the row) returns `error: null` and the handler

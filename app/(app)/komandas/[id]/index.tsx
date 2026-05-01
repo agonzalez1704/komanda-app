@@ -1,20 +1,21 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Screen, Text } from '@/components/ui';
 import { calculateTotal } from '@/domain/total';
-import { fetchMyMembership } from '@/insforge/queries/membership';
-import { useUpdateStatus } from '@/mutations/useUpdateStatus';
-import { useRemoveItem } from '@/mutations/useRemoveItem';
+import { displayIdentifier } from '@/domain/komandaNumber';
 import { ActionFooter } from '@/features/komanda-detail/components/ActionFooter';
 import { DetailNavBar } from '@/features/komanda-detail/components/DetailNavBar';
 import { HeroTotal } from '@/features/komanda-detail/components/HeroTotal';
 import { ItemsList } from '@/features/komanda-detail/components/ItemsList';
+import { KomandaTicket } from '@/features/komanda-detail/components/KomandaTicket';
 import { StatusSegment } from '@/features/komanda-detail/components/StatusSegment';
-import { TotalCard } from '@/features/komanda-detail/components/TotalCard';
 import { useKomandaDetail } from '@/features/komanda-detail/hooks/useKomandaDetail';
 import { useReshareReceipt } from '@/features/komanda-detail/hooks/useReshareReceipt';
+import { fetchMyMembership } from '@/insforge/queries/membership';
+import { useRemoveItem } from '@/mutations/useRemoveItem';
+import { useUpdateStatus } from '@/mutations/useUpdateStatus';
 import { color } from '@/theme/tokens';
+import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 export default function KomandaDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -85,25 +86,47 @@ export default function KomandaDetail() {
   return (
     <Screen scrollable padded={false} bottomInset={120} footer={footer} floatingFooter>
       <DetailNavBar row={row} onBack={goBack} />
-      <HeroTotal
-        totalCents={total}
-        itemCount={itemCount}
-        displayName={row.display_name}
-      />
-      {!closed ? (
-        <StatusSegment
-          current={row.status}
-          onChange={(next) =>
-            updateStatus.mutate({ komanda_id: id!, status: next })
-          }
+      {closed ? (
+        <KomandaTicket
+          orgName={membership.data?.organization.name ?? ''}
+          identifier={displayIdentifier(row)}
+          customerLabel={row.display_name}
+          waiterName={membership.data?.display_name ?? '—'}
+          openedAtIso={row.opened_at}
+          closedAtIso={row.closed_at}
+          items={items.map((it) => ({
+            id: it.id,
+            quantity: it.quantity,
+            product_name_snapshot: it.product_name_snapshot,
+            variant_name_snapshot: it.variant_name_snapshot,
+            unit_price_cents: it.unit_price_cents,
+            modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
+            note_text: it.note_text,
+          }))}
+          totalCents={row.total_cents ?? total}
+          paymentMethod={row.payment_method}
+          bookingRef={row.id.split('-')[0].toUpperCase()}
         />
-      ) : null}
-      <ItemsList
-        items={items}
-        closed={closed}
-        onRemove={(itemId) => removeItem.mutate(itemId)}
-      />
-      {lineCount > 0 ? <TotalCard totalCents={total} /> : null}
+      ) : (
+        <>
+          <HeroTotal
+            totalCents={total}
+            itemCount={itemCount}
+            displayName={row.display_name}
+          />
+          <StatusSegment
+            current={row.status}
+            onChange={(next) =>
+              updateStatus.mutate({ komanda_id: id!, status: next })
+            }
+          />
+          <ItemsList
+            items={items}
+            closed={closed}
+            onRemove={(itemId) => removeItem.mutate(itemId)}
+          />
+        </>
+      )}
     </Screen>
   );
 }

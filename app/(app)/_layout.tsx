@@ -1,6 +1,6 @@
 import { Redirect, Stack, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useIsRestoring, useQuery } from '@tanstack/react-query';
+import { useIsRestoring, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/insforge/session';
 import { fetchMyMembership } from '@/insforge/queries/membership';
 import { clearToken, insforge } from '@/insforge/client';
@@ -101,6 +101,7 @@ function RetrySurface({
   onRetry: () => void;
 }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const message = formatError(error);
   // When the SDK's internal refresh already failed, retrying with the same
   // dead token will keep 401-ing — surface sign-out as the primary action.
@@ -114,6 +115,8 @@ function RetrySurface({
     } catch {
       // Sign-out failures here are non-fatal; we just want to clear local state.
     }
+    // Drop cached queries so the next sign-in starts fresh.
+    qc.clear();
     router.replace('/(auth)/sign-in');
   }
 

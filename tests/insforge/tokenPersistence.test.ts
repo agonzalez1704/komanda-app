@@ -7,6 +7,7 @@ import {
   AUTH_TOKEN_KEY,
   REFRESH_TOKEN_KEY,
   accessTokenExpMs,
+  attachAuthClearedListener,
   attachTokenPersistence,
   shouldProactivelyRefresh,
   type HasHttpClient,
@@ -148,6 +149,68 @@ describe('attachTokenPersistence', () => {
     await Promise.resolve();
     // One AsyncStorage write per call, not two.
     expect(await AsyncStorage.getItem(AUTH_TOKEN_KEY)).toBe('only-once');
+  });
+});
+
+describe('attachAuthClearedListener', () => {
+  function makeFakeTmClient(initialAccess: string | null = 'tok-x') {
+    const tm: { onTokenChange: (() => void) | null; getAccessToken: () => string | null; _access: string | null } = {
+      onTokenChange: null,
+      _access: initialAccess,
+      getAccessToken() {
+        return this._access;
+      },
+    };
+    return { tokenManager: tm };
+  }
+
+  it('fires onCleared when token transitions to null', () => {
+    const client = makeFakeTmClient('tok-x');
+    const onCleared = jest.fn();
+    attachAuthClearedListener(client, onCleared);
+
+    client.tokenManager._access = null;
+    client.tokenManager.onTokenChange?.();
+
+    expect(onCleared).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire onCleared on a token rotation (still non-null)', () => {
+    const client = makeFakeTmClient('tok-old');
+    const onCleared = jest.fn();
+    attachAuthClearedListener(client, onCleared);
+
+    client.tokenManager._access = 'tok-new';
+    client.tokenManager.onTokenChange?.();
+
+    expect(onCleared).not.toHaveBeenCalled();
+  });
+
+  it('preserves a pre-existing onTokenChange (e.g. SDK realtime client)', () => {
+    const client = makeFakeTmClient('tok-x');
+    const prior = jest.fn();
+    client.tokenManager.onTokenChange = prior;
+    const onCleared = jest.fn();
+    attachAuthClearedListener(client, onCleared);
+
+    client.tokenManager._access = null;
+    client.tokenManager.onTokenChange?.();
+
+    expect(prior).toHaveBeenCalledTimes(1);
+    expect(onCleared).toHaveBeenCalledTimes(1);
+  });
+
+  it('still fires onCleared if the prior subscriber throws', () => {
+    const client = makeFakeTmClient('tok-x');
+    client.tokenManager.onTokenChange = () => {
+      throw new Error('realtime blew up');
+    };
+    const onCleared = jest.fn();
+    attachAuthClearedListener(client, onCleared);
+
+    client.tokenManager._access = null;
+    expect(() => client.tokenManager.onTokenChange?.()).not.toThrow();
+    expect(onCleared).toHaveBeenCalledTimes(1);
   });
 });
 

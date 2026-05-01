@@ -29,8 +29,10 @@ export function useReshareReceipt({
     await shareReceipt({
       orgName: membership.organization.name,
       identifier: displayIdentifier(row),
+      customerLabel: row.display_name,
       waiterName: membership.display_name,
       openedAtIso: row.opened_at,
+      closedAtIso: row.closed_at,
       items: items.map((it) => ({
         quantity: it.quantity,
         product_name_snapshot: it.product_name_snapshot,
@@ -41,6 +43,7 @@ export function useReshareReceipt({
       })),
       totalCents: row.total_cents ?? 0,
       paymentMethod: row.payment_method,
+      bookingRef: row.id.split('-')[0].toUpperCase(),
     });
   }, [row, items, membership]);
 }

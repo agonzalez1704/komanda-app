@@ -1,16 +1,18 @@
 import React from 'react';
 import { Link, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { insforge, clearToken } from '@/insforge/client';
 import { fetchMyMembership } from '@/insforge/queries/membership';
 import { resetCreateKomandaContext } from '@/offline/handlers/createKomanda';
+import { can } from '@/auth/permissions';
 import { Button, Card, Divider, Screen, ScreenHeader, Text } from '@/components/ui';
 import { color, fontWeight, radius, space } from '@/theme/tokens';
 
 export default function Settings() {
   const router = useRouter();
+  const qc = useQueryClient();
   const { data: membership } = useQuery({
     queryKey: ['membership'],
     queryFn: fetchMyMembership,
@@ -20,6 +22,9 @@ export default function Settings() {
     await clearToken();
     resetCreateKomandaContext();
     await insforge.auth.signOut();
+    // Drop every cached query so the next user doesn't inherit this one's
+    // membership / komandas / audit data from the persisted cache.
+    qc.clear();
     router.replace('/(auth)/sign-in');
   }
 
@@ -29,6 +34,13 @@ export default function Settings() {
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase())
     .join('');
+
+  const showMenu = !!membership && can.manageMenu(membership.role);
+  const showTeam = membership?.role === 'admin';
+  const showAuditHistory = !!membership && can.viewAudit(membership.role);
+  const showExpenseCategories = membership?.role === 'admin';
+  const showManagement =
+    showMenu || showTeam || showAuditHistory || showExpenseCategories;
 
   return (
     <Screen scrollable padded={false} contentContainerStyle={{ gap: space.lg, paddingBottom: space.xxl }}>
@@ -59,18 +71,62 @@ export default function Settings() {
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text variant="label" style={styles.sectionLabel}>Management</Text>
-        <Card padded={false}>
-          <Link href="/(app)/menu" asChild>
-            <NavRow
-              icon="restaurant-outline"
-              label="Menu"
-              hint="Products, variants, and modifiers"
-            />
-          </Link>
-        </Card>
-      </View>
+      {showManagement ? (
+        <View style={styles.section}>
+          <Text variant="label" style={styles.sectionLabel}>Management</Text>
+          <Card padded={false}>
+            {showMenu ? (
+              <Link href="/(app)/menu" asChild>
+                <NavRow
+                  icon="restaurant-outline"
+                  label="Menu"
+                  hint="Products, variants, and modifiers"
+                />
+              </Link>
+            ) : null}
+            {showTeam ? (
+              <>
+                {showMenu ? <Divider style={{ marginLeft: 52 }} /> : null}
+                <Link href="/(app)/settings/team" asChild>
+                  <NavRow
+                    icon="people-outline"
+                    label="Team"
+                    hint="Members and pending invites"
+                  />
+                </Link>
+              </>
+            ) : null}
+            {showAuditHistory ? (
+              <>
+                {showMenu || showTeam ? (
+                  <Divider style={{ marginLeft: 52 }} />
+                ) : null}
+                <Link href={'/(app)/settings/audit-history' as any} asChild>
+                  <NavRow
+                    icon="time-outline"
+                    label="Audit history"
+                    hint="Closed periods"
+                  />
+                </Link>
+              </>
+            ) : null}
+            {showExpenseCategories ? (
+              <>
+                {showMenu || showTeam || showAuditHistory ? (
+                  <Divider style={{ marginLeft: 52 }} />
+                ) : null}
+                <Link href={'/(app)/settings/expense-categories' as any} asChild>
+                  <NavRow
+                    icon="pricetags-outline"
+                    label="Expense categories"
+                    hint="Manage categories"
+                  />
+                </Link>
+              </>
+            ) : null}
+          </Card>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text variant="label" style={styles.sectionLabel}>Account</Text>

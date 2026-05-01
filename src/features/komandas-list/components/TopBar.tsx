@@ -11,11 +11,13 @@ export function TopBar({
   searchOpen,
   onToggleSearch,
   onOpenSettings,
+  onOpenAudit,
 }: {
   dateLabel: string;
   searchOpen: boolean;
   onToggleSearch: () => void;
   onOpenSettings: () => void;
+  onOpenAudit?: () => void;
 }) {
   return (
     <View style={styles.pad}>
@@ -34,6 +36,14 @@ export function TopBar({
             {dateLabel}
           </Text>
         </View>
+        {onOpenAudit ? (
+          <IconButton
+            glass
+            name="stats-chart-outline"
+            accessibilityLabel="Audit"
+            onPress={onOpenAudit}
+          />
+        ) : null}
         <IconButton
           glass
           name="settings-outline"

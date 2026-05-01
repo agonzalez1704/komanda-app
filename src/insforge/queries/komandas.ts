@@ -2,37 +2,12 @@ import { z } from 'zod';
 import { insforge } from '@/insforge/client';
 import { KomandaRow, type KomandaRowT } from '@/insforge/schemas';
 
-/**
- * Fetch komandas for the given local day, PLUS any still-active komandas
- * regardless of when they were opened.
- *
- * Why the "still-active" clause:
- *   - The server stores `opened_at` in UTC; we filter against the user's
- *     local-midnight boundaries converted to UTC. In a negative-offset
- *     timezone (e.g. Mexico, UTC-6) a komanda opened at 22:00 local gets
- *     stored as the NEXT day in UTC. Without the `or(status)` clause, a
- *     komanda opened late last night that's still on the table "today"
- *     would be invisible from the list.
- *   - Also covers the case where someone leaves a komanda open across
- *     midnight and comes back the next day to close it.
- *
- * We also use `safeParse` per-row so that a single row with a surprise value
- * (e.g. a new status enum added server-side) doesn't nuke the whole list.
- */
-export async function fetchKomandasForDate(date: Date): Promise<KomandaRowT[]> {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-
+// safeParse per-row so a single row with a surprise enum value doesn't nuke
+// the whole list.
+export async function fetchKomandas(): Promise<KomandaRowT[]> {
   const { data, error } = await insforge.database
     .from('komandas')
     .select('*')
-    // Anything opened in today's local-day window, OR anything still active
-    // (not closed) regardless of when it was opened.
-    .or(
-      `and(opened_at.gte.${start.toISOString()},opened_at.lt.${end.toISOString()}),status.neq.closed`,
-    )
     .order('opened_at', { ascending: false });
   if (error) throw error;
 
@@ -43,7 +18,7 @@ export async function fetchKomandasForDate(date: Date): Promise<KomandaRowT[]> {
       out.push(parsed.data);
     } else if (__DEV__) {
       console.warn(
-        '[fetchKomandasForDate] skipping unparseable row',
+        '[fetchKomandas] skipping unparseable row',
         parsed.error.flatten(),
         r,
       );

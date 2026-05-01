@@ -16,7 +16,8 @@ export type MutationType =
   | 'upsert_variant'
   | 'delete_variant'
   | 'upsert_modifier'
-  | 'delete_modifier';
+  | 'delete_modifier'
+  | 'create_expense';
 
 export interface QueuedMutation<P = unknown> {
   id: string;
@@ -110,4 +111,77 @@ export async function resetAttempts(
     !idSet || idSet.has(m.id) ? { ...m, attemptCount: 0, lastError: null } : m,
   );
   await store.write(next);
+}
+
+function localProducerIdOf(m: QueuedMutation): string | null {
+  if (m.type === 'create_komanda') {
+    const lu = (m.payload as { local_uuid?: unknown }).local_uuid;
+    return typeof lu === 'string' ? lu : null;
+  }
+  if (m.type === 'add_item') {
+    const lu = (m.payload as { item_local_uuid?: unknown }).item_local_uuid;
+    return typeof lu === 'string' ? lu : null;
+  }
+  return null;
+}
+
+function localRefIdsOf(m: QueuedMutation): string[] {
+  switch (m.type) {
+    case 'add_item':
+    case 'update_status':
+    case 'rename_komanda':
+    case 'close_komanda':
+      return [(m.payload as { komanda_id?: unknown }).komanda_id].filter(
+        (x): x is string => typeof x === 'string',
+      );
+    case 'update_item':
+    case 'remove_item':
+      return [(m.payload as { item_id?: unknown }).item_id].filter(
+        (x): x is string => typeof x === 'string',
+      );
+    default:
+      return [];
+  }
+}
+
+/**
+ * Drop the given mutation ids AND any descendants that depend on the
+ * local-uuids those mutations would produce. Used by "Discard all" so a
+ * burned create_komanda doesn't leave orphan add_items behind that would
+ * never sync (no parent → FK violation). Iterates to a fixed point so
+ * grandchildren (e.g. update_item on an item from a discarded komanda)
+ * also get swept.
+ */
+export async function dequeueWithDependents(
+  store: QueueStore,
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  let all = await store.read();
+  const removeIds = new Set(ids);
+  const orphanLocalIds = new Set<string>();
+
+  for (const m of all) {
+    if (!removeIds.has(m.id)) continue;
+    const produced = localProducerIdOf(m);
+    if (produced) orphanLocalIds.add(produced);
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const m of all) {
+      if (removeIds.has(m.id)) continue;
+      const refs = localRefIdsOf(m);
+      if (refs.some((r) => orphanLocalIds.has(r))) {
+        removeIds.add(m.id);
+        const produced = localProducerIdOf(m);
+        if (produced) orphanLocalIds.add(produced);
+        changed = true;
+      }
+    }
+  }
+
+  all = all.filter((m) => !removeIds.has(m.id));
+  await store.write(all);
 }

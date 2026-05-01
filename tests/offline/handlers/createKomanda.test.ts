@@ -10,7 +10,11 @@ jest.mock('@/insforge/client', () => ({
     },
   },
 }));
+jest.mock('@/insforge/queries/auditPeriods', () => ({
+  fetchOpenPeriod: jest.fn(),
+}));
 import { insforge } from '@/insforge/client';
+import { fetchOpenPeriod } from '@/insforge/queries/auditPeriods';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -19,6 +23,11 @@ beforeEach(async () => {
 
 describe('createKomandaHandler', () => {
   it('allocates a number via RPC, inserts the komanda, and records the id mapping', async () => {
+    (fetchOpenPeriod as jest.Mock).mockResolvedValue({
+      id: 'period-1',
+      org_id: 'org-1',
+      status: 'open',
+    });
     (insforge.database.rpc as jest.Mock).mockResolvedValue({
       data: 'komanda-20260420-001',
       error: null,
@@ -40,11 +49,10 @@ describe('createKomandaHandler', () => {
       },
       error: null,
     });
-    (insforge.database.from as jest.Mock).mockReturnValue({
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({ single }),
-      }),
+    const insert = jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({ single }),
     });
+    (insforge.database.from as jest.Mock).mockReturnValue({ insert });
 
     const localStore = createLocalStore();
     const handle = createKomandaHandler({
@@ -64,9 +72,18 @@ describe('createKomandaHandler', () => {
       lastError: null,
     });
 
+    expect(fetchOpenPeriod).toHaveBeenCalledWith('org-1');
     expect(insforge.database.rpc).toHaveBeenCalledWith('next_komanda_number', {
       p_date: '2026-04-20',
     });
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        org_id: 'org-1',
+        period_id: 'period-1',
+        opened_by_auth_user_id: 'user-1',
+        local_uuid: 'local-1',
+      }),
+    );
     expect(await resolveId(localStore, 'local-1')).toBe('server-id-1');
   });
 });
