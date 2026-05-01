@@ -173,10 +173,15 @@ export function KomandaTicket(props: KomandaTicketProps) {
           </View>
         </View>
 
-        {/* Perforation */}
+        {/* Perforation. RN's dashed border style is unsupported on most
+            backgrounds; render the dashes as a row of tiny pills instead. */}
         <View style={styles.perfRow}>
           <View style={[styles.perfNotch, { left: -10 }]} />
-          <View style={styles.perfLine} />
+          <View style={styles.perfLine}>
+            {Array.from({ length: 28 }).map((_, i) => (
+              <View key={i} style={styles.perfDash} />
+            ))}
+          </View>
           <View style={[styles.perfNotch, { right: -10 }]} />
         </View>
 
@@ -412,9 +417,15 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     marginHorizontal: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.18)',
-    borderStyle: 'dashed',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  perfDash: {
+    width: 6,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.22)',
   },
 
   // Items
