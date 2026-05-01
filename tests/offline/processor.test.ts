@@ -6,6 +6,7 @@ import {
   type QueuedMutation,
 } from '@/offline/queue';
 import { drainQueue, type MutationHandler } from '@/offline/processor';
+import { DeferredMutationError } from '@/offline/handlers/_deps';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -43,6 +44,27 @@ describe('drainQueue', () => {
     expect(remaining[0].attemptCount).toBe(1);
     expect(remaining[0].lastError).toBe('network');
     expect(remaining[1].attemptCount).toBe(0);
+  });
+
+  it('skips a deferred mutation without bumping attempts and continues drain', async () => {
+    const store = createQueueStore();
+    await enqueue(store, { type: 'add_item', payload: { tag: 'deferred' } });
+    await enqueue(store, { type: 'create_komanda', payload: { tag: 'sibling' } });
+
+    const calls: string[] = [];
+    const deferring: MutationHandler = async () => {
+      throw new DeferredMutationError('not yet');
+    };
+    const ok: MutationHandler = async (m) => {
+      calls.push(String((m.payload as any).tag));
+    };
+    await drainQueue(store, { add_item: deferring, create_komanda: ok } as any);
+
+    expect(calls).toEqual(['sibling']);
+    const remaining = await getAll(store);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].attemptCount).toBe(0);
+    expect(remaining[0].lastError).toBeNull();
   });
 
   it('skips mutations that exceed maxAttempts', async () => {

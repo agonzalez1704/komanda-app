@@ -1,6 +1,7 @@
 import { insforge } from '@/insforge/client';
-import type { QueuedMutation } from '@/offline/queue';
+import type { QueuedMutation, QueueStore } from '@/offline/queue';
 import { rememberSync, resolveId, type LocalStore } from '@/offline/localStore';
+import { DeferredMutationError, getQueuedProducerIds } from './_deps';
 
 export interface AddItemPayload {
   item_local_uuid: string;
@@ -16,10 +17,18 @@ export interface AddItemPayload {
   modifiers: Array<{ modifier_id: string | null; name_snapshot: string }>;
 }
 
-export function addItemHandler(deps: { localStore: LocalStore }) {
+export function addItemHandler(deps: { localStore: LocalStore; queueStore: QueueStore }) {
   return async function handle(m: QueuedMutation): Promise<void> {
     const p = m.payload as AddItemPayload;
     const komandaId = await resolveId(deps.localStore, p.komanda_id);
+    if (komandaId === p.komanda_id) {
+      const producers = await getQueuedProducerIds(deps.queueStore);
+      if (producers.has(p.komanda_id)) {
+        throw new DeferredMutationError(
+          `add_item: waiting on parent komanda ${p.komanda_id} to sync`,
+        );
+      }
+    }
 
     const { data: inserted, error } = await insforge.database
       .from('komanda_items')

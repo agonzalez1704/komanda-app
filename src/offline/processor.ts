@@ -6,6 +6,7 @@ import {
   type QueueStore,
   type MutationType,
 } from './queue';
+import { DeferredMutationError } from './handlers/_deps';
 
 export type MutationHandler = (m: QueuedMutation) => Promise<void>;
 export type HandlerRegistry = Record<MutationType, MutationHandler>;
@@ -87,6 +88,13 @@ export async function drainQueue(
       await dequeue(store, m.id);
       synced.add(m.type);
     } catch (e) {
+      // DeferredMutationError = "parent producer still queued, can't run me yet".
+      // Don't bump attempts, don't fail the drain — just skip and let the next
+      // mutation try. We'll get back to this one once its parent syncs (or
+      // gets discarded).
+      if (e instanceof DeferredMutationError) {
+        continue;
+      }
       await markFailed(store, m.id, formatError(e));
       return { synced };
     }

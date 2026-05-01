@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 import {
+  AUTH_CLEARED_EVENT,
   AUTH_TOKEN_KEY,
   bootstrapSession,
   loadCachedUser,
@@ -65,6 +67,17 @@ export function useSession(): SessionState & { refreshSession: () => void } {
     // refreshTick is intentionally included so callers can trigger a re-check.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTick]);
+
+  // SDK fires this when its internal refresh dies — local tokens are wiped at
+  // that point. Bouncing refreshTick re-runs the effect, which re-reads
+  // AsyncStorage (now empty) and flips state to signed-out.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(AUTH_CLEARED_EVENT, () => {
+      refreshCountRef.current += 1;
+      setRefreshTick((t) => t + 1);
+    });
+    return () => sub.remove();
+  }, []);
 
   return { ...state, refreshSession };
 }

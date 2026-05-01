@@ -2,7 +2,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { useQueueSnapshot } from '@/offline/useQueueSnapshot';
-import { dequeue, resetAttempts } from '@/offline/queue';
+import { dequeueWithDependents, resetAttempts } from '@/offline/queue';
 import { queueStore } from '@/offline/handlers';
 import { kickDrain } from '@/offline/drain';
 import { formatError } from '@/offline/processor';
@@ -73,7 +73,10 @@ export function StuckMutationsBanner() {
           text: 'Discard all',
           style: 'destructive',
           onPress: async () => {
-            for (const m of stuck) await dequeue(queueStore, m.id);
+            // Cascade: dropping a stuck create_komanda also drops its
+            // queued add_items / updates / close that would otherwise FK-fail
+            // forever now that their parent is gone.
+            await dequeueWithDependents(queueStore, stuck.map((m) => m.id));
           },
         },
       ],

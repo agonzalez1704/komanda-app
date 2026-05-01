@@ -3,7 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import type { KomandaRowT } from '@/insforge/schemas';
 import {
   fetchItemsForKomanda,
-  fetchKomandasForDate,
+  fetchKomandas,
 } from '@/insforge/queries/komandas';
 import { calculateTotal } from '@/domain/total';
 
@@ -16,14 +16,10 @@ export type UseKomandasDataResult = {
   statsById: Map<string, KomandaStats>;
 };
 
-/**
- * Fetches today's komandas and their per-row item stats. One hook, one
- * concern: surface the raw data plus a quick-lookup stats map.
- */
-export function useKomandasData(today: Date): UseKomandasDataResult {
+export function useKomandasData(): UseKomandasDataResult {
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['komandas', 'today'],
-    queryFn: () => fetchKomandasForDate(today),
+    queryKey: ['komandas', 'all'],
+    queryFn: fetchKomandas,
     staleTime: 1000 * 10,
   });
 
