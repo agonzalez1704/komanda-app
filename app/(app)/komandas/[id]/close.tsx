@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchKomandaById, fetchItemsForKomanda } from '@/insforge/queries/komandas';
+import { listKomandaCombos } from '@/insforge/queries/komandaCombos';
 import { fetchMyMembership } from '@/insforge/queries/membership';
 import { calculateTotal } from '@/domain/total';
 import { formatMXN } from '@/domain/money';
@@ -46,6 +47,11 @@ export default function Close() {
     queryFn: () => fetchItemsForKomanda(id!),
     enabled: !!id && !localOnly,
   });
+  const combos = useQuery({
+    queryKey: ['komanda', id, 'combos'],
+    queryFn: () => listKomandaCombos(id!),
+    enabled: !!id && !localOnly,
+  });
   const membership = useQuery({ queryKey: ['membership'], queryFn: fetchMyMembership });
   const close = useCloseKomanda();
 
@@ -54,7 +60,13 @@ export default function Close() {
   const [method, setMethod] = useState<PaymentMethodT | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (!id || ((komanda.isLoading && !cached) || items.isLoading || membership.isLoading)) {
+  if (
+    !id ||
+    (komanda.isLoading && !cached) ||
+    items.isLoading ||
+    combos.isLoading ||
+    membership.isLoading
+  ) {
     return (
       <Screen>
         <View style={styles.center}>
@@ -73,7 +85,16 @@ export default function Close() {
     );
   }
 
-  const total = calculateTotal(items.data ?? []);
+  // Free-floating items (combo children carry unit_price_cents = 0 and are
+  // priced through their combo's snapshot, so calculateTotal naturally
+  // ignores them — but be explicit and filter for clarity).
+  const freeItems = (items.data ?? []).filter((it) => it.combo_id == null);
+  const itemsTotal = calculateTotal(freeItems);
+  const combosTotal = (combos.data ?? []).reduce(
+    (sum, c) => sum + c.price_cents_snapshot,
+    0,
+  );
+  const total = itemsTotal + combosTotal;
 
   async function confirmAndShare() {
     if (!method || !row || !membership.data || submitting) return;
@@ -82,6 +103,15 @@ export default function Close() {
     // Snapshot data we need for the receipt before navigation unmounts this
     // screen's query state.
     const closedAt = new Date().toISOString();
+    const allItems = items.data ?? [];
+    const childByCombo = new Map<string, typeof allItems>();
+    for (const it of allItems) {
+      if (it.combo_id) {
+        const arr = childByCombo.get(it.combo_id) ?? [];
+        arr.push(it);
+        childByCombo.set(it.combo_id, arr);
+      }
+    }
     const receiptInput = {
       orgName: membership.data.organization.name,
       identifier: displayIdentifier(row),
@@ -89,13 +119,28 @@ export default function Close() {
       waiterName: membership.data.display_name,
       openedAtIso: row.opened_at,
       closedAtIso: closedAt,
-      items: (items.data ?? []).map((it) => ({
-        quantity: it.quantity,
-        product_name_snapshot: it.product_name_snapshot,
-        variant_name_snapshot: it.variant_name_snapshot,
-        unit_price_cents: it.unit_price_cents,
-        modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
-        note_text: it.note_text,
+      items: allItems
+        .filter((it) => it.combo_id == null)
+        .map((it) => ({
+          quantity: it.quantity,
+          product_name_snapshot: it.product_name_snapshot,
+          variant_name_snapshot: it.variant_name_snapshot,
+          unit_price_cents: it.unit_price_cents,
+          modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
+          note_text: it.note_text,
+        })),
+      combos: (combos.data ?? []).map((c) => ({
+        id: c.id,
+        name_snapshot: c.name_snapshot,
+        price_cents_snapshot: c.price_cents_snapshot,
+        children: (childByCombo.get(c.id) ?? []).map((it) => ({
+          quantity: it.quantity,
+          product_name_snapshot: it.product_name_snapshot,
+          variant_name_snapshot: it.variant_name_snapshot,
+          unit_price_cents: it.unit_price_cents,
+          modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
+          note_text: it.note_text,
+        })),
       })),
       totalCents: total,
       paymentMethod: method,
@@ -227,6 +272,7 @@ export default function Close() {
           closedAtIso={null}
           items={(items.data ?? []).map((it) => ({
             id: it.id,
+            combo_id: it.combo_id,
             quantity: it.quantity,
             product_name_snapshot: it.product_name_snapshot,
             variant_name_snapshot: it.variant_name_snapshot,
@@ -234,6 +280,7 @@ export default function Close() {
             modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
             note_text: it.note_text,
           }))}
+          combos={combos.data ?? []}
           totalCents={total}
           paymentMethod={method}
           bookingRef={row.id.split('-')[0].toUpperCase()}

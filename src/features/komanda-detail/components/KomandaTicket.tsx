@@ -10,7 +10,9 @@ import {
   radius,
   space,
 } from '@/theme/tokens';
-import type { PaymentMethodT } from '@/insforge/schemas';
+import type { KomandaComboRowT, PaymentMethodT } from '@/insforge/schemas';
+import { groupItemsByCombo } from '@/domain/comboGrouping';
+import { ComboGroup } from './ComboGroup';
 
 /**
  * KomandaTicket — train-ticket-inspired card used for closed komandas
@@ -26,6 +28,9 @@ import type { PaymentMethodT } from '@/insforge/schemas';
 
 export interface KomandaTicketItem {
   id: string;
+  /** When set, this item is a child of the matching combo and renders in
+   * the grouped section instead of the free items list. */
+  combo_id?: string | null;
   quantity: number;
   product_name_snapshot: string;
   variant_name_snapshot: string | null;
@@ -43,6 +48,9 @@ export interface KomandaTicketProps {
   /** null when in close-preview mode (komanda not yet closed). */
   closedAtIso: string | null;
   items: KomandaTicketItem[];
+  /** Combos placed on the komanda. Children are rendered as a single
+   * grouped block under the combo's snapshot price. */
+  combos?: KomandaComboRowT[];
   totalCents: number;
   /** null in preview if user has not yet picked a method. */
   paymentMethod: PaymentMethodT | null;
@@ -106,6 +114,7 @@ export function KomandaTicket(props: KomandaTicketProps) {
     openedAtIso,
     closedAtIso,
     items,
+    combos = [],
     totalCents,
     paymentMethod,
     bookingRef,
@@ -114,6 +123,25 @@ export function KomandaTicket(props: KomandaTicketProps) {
   const isPreview = closedAtIso === null;
   const heading = customerLabel ?? identifier;
   const bars = barcodeBars(bookingRef);
+
+  const grouped = groupItemsByCombo({
+    items: items.map((it) => ({
+      id: it.id,
+      combo_id: it.combo_id ?? null,
+      quantity: it.quantity,
+      product_name_snapshot: it.product_name_snapshot,
+      variant_name_snapshot: it.variant_name_snapshot,
+      unit_price_cents: it.unit_price_cents,
+      modifiers: it.modifiers ?? [],
+      note_text: it.note_text ?? null,
+    })),
+    combos: combos.map((c) => ({
+      id: c.id,
+      name_snapshot: c.name_snapshot,
+      category_snapshot: c.category_snapshot,
+      price_cents_snapshot: c.price_cents_snapshot,
+    })),
+  });
 
   return (
     <View style={styles.pad}>
@@ -187,10 +215,21 @@ export function KomandaTicket(props: KomandaTicketProps) {
 
         {/* 4. Items list */}
         <View style={styles.items}>
-          {items.length === 0 ? (
+          {grouped.length === 0 ? (
             <Text style={styles.itemEmpty}>No items.</Text>
           ) : (
-            items.map((it) => {
+            grouped.map((row) => {
+              if (row.kind === 'combo') {
+                return (
+                  <ComboGroup
+                    key={`c:${row.combo.id}`}
+                    combo={row.combo}
+                    children={row.children}
+                    tone="dark"
+                  />
+                );
+              }
+              const it = row.item;
               const lineTotal = it.quantity * it.unit_price_cents;
               const mods = it.modifiers ?? [];
               return (
@@ -520,6 +559,8 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontSize: 30,
+    lineHeight: 40,
+    includeFontPadding: false,
     fontWeight: fontWeight.heavy,
     color: '#FFFFFF',
     letterSpacing: -0.4,
