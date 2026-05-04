@@ -179,6 +179,31 @@ begin
     end if;
   end if;
 
+  -- Validate every product_id / variant_id referenced by the new
+  -- composition belongs to the caller's org. Without this check a
+  -- security-definer admin in org A could plant cross-org references via
+  -- crafted JSON; the FK alone won't catch it (it's content-addressed by
+  -- id, not scope).
+  if exists (
+    select 1
+      from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) as it
+      left join public.products p on p.id = (it->>'product_id')::uuid
+     where p.org_id is null or p.org_id <> v_org
+  ) then
+    raise exception 'product_not_in_org';
+  end if;
+  if exists (
+    select 1
+      from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) as it
+     where nullif(it->>'variant_id','') is not null
+       and not exists (
+         select 1 from public.variants v
+          where v.id = (it->>'variant_id')::uuid and v.org_id = v_org
+       )
+  ) then
+    raise exception 'variant_not_in_org';
+  end if;
+
   -- Replace composition wholesale.
   delete from public.combo_items where combo_id = v_combo.id;
   insert into public.combo_items (combo_id, product_id, variant_id, quantity, sort_order)
@@ -247,6 +272,51 @@ begin
   end if;
   if v_komanda_org <> v_org then
     raise exception 'forbidden';
+  end if;
+
+  -- Validate cross-org reference smuggling. SECURITY DEFINER bypasses RLS,
+  -- so we must enforce same-org membership ourselves on every FK we accept
+  -- from caller-controlled JSON: combo_id, child product_id / variant_id,
+  -- modifier modifier_id.
+  if p_combo_id is not null and not exists (
+    select 1 from public.combos where id = p_combo_id and org_id = v_org
+  ) then
+    raise exception 'combo_not_in_org';
+  end if;
+
+  if exists (
+    select 1
+      from jsonb_array_elements(coalesce(p_children, '[]'::jsonb)) as ch
+      left join public.products p on p.id = nullif(ch->>'product_id','')::uuid
+     where nullif(ch->>'product_id','') is not null
+       and (p.org_id is null or p.org_id <> v_org)
+  ) then
+    raise exception 'product_not_in_org';
+  end if;
+
+  if exists (
+    select 1
+      from jsonb_array_elements(coalesce(p_children, '[]'::jsonb)) as ch
+     where nullif(ch->>'variant_id','') is not null
+       and not exists (
+         select 1 from public.variants v
+          where v.id = (ch->>'variant_id')::uuid and v.org_id = v_org
+       )
+  ) then
+    raise exception 'variant_not_in_org';
+  end if;
+
+  if exists (
+    select 1
+      from jsonb_array_elements(coalesce(p_children, '[]'::jsonb)) as ch,
+           lateral jsonb_array_elements(coalesce(ch->'modifiers','[]'::jsonb)) as m
+     where nullif(m->>'modifier_id','') is not null
+       and not exists (
+         select 1 from public.modifiers mo
+          where mo.id = (m->>'modifier_id')::uuid and mo.org_id = v_org
+       )
+  ) then
+    raise exception 'modifier_not_in_org';
   end if;
 
   insert into public.komanda_combos
