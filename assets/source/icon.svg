@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Background: saffron, no transparency (iOS rule) -->
+  <rect width="1024" height="1024" fill="#F4A820"/>
+
+  <!--
+    K formed by three kitchen tools.
+
+    Geometry plan:
+      • K bounding box centered ~360..708 horizontally, ~232..792 vertically.
+      • Pivot point where the two diagonals meet the vertical:  (430, 512).
+      • Vertical (paring knife): handle at bottom, blade tip at top, length 560.
+      • Upper diagonal (fork):  from pivot to upper-right corner (708, 232).
+      • Lower diagonal (spoon): from pivot to lower-right corner (708, 792).
+
+    All utensils share the same dark warm tone; thickness ~70 reads at 60px.
+  -->
+  <g fill="#1C1410">
+
+    <!-- ============================================================
+         VERTICAL  ·  Paring knife (handle bottom, blade up)
+         ============================================================ -->
+    <!-- Handle: rounded rectangle, lower portion -->
+    <rect x="362" y="600" width="68" height="192" rx="22" ry="22"/>
+    <!-- Bolster (small pinstripe between handle and blade) -->
+    <rect x="358" y="592" width="76" height="14" rx="4"/>
+    <!-- Blade: tapering polygon to a point -->
+    <polygon points="362,592 430,592 410,232 392,232"/>
+
+    <!-- ============================================================
+         UPPER DIAGONAL  ·  Fork (handle at pivot, tines at corner)
+         angle = atan2(232-512, 708-430) = atan2(-280, 278) ≈ -45.2°
+         length = sqrt(280^2 + 278^2) ≈ 394
+         ============================================================ -->
+    <g transform="translate(430 512) rotate(-45.2)">
+      <!-- Handle: rounded rect from origin out to ~270 -->
+      <rect x="0" y="-32" width="270" height="64" rx="18" ry="18"/>
+      <!-- Neck (where handle meets fork head) -->
+      <rect x="266" y="-26" width="22" height="52"/>
+      <!-- Fork head base bar (the bridge connecting the tines) -->
+      <rect x="288" y="-44" width="22" height="88" rx="4"/>
+      <!-- 3 tines, equally spaced -->
+      <rect x="310" y="-44" width="78" height="22" rx="6"/>
+      <rect x="310" y="-11" width="78" height="22" rx="6"/>
+      <rect x="310" y="22"  width="78" height="22" rx="6"/>
+    </g>
+
+    <!-- ============================================================
+         LOWER DIAGONAL  ·  Spoon (handle at pivot, bowl at corner)
+         angle = atan2(792-512, 708-430) = atan2(280, 278) ≈ +45.2°
+         length ≈ 394
+         ============================================================ -->
+    <g transform="translate(430 512) rotate(45.2)">
+      <!-- Handle: rounded rect from origin out to ~268 -->
+      <rect x="0" y="-30" width="268" height="60" rx="16" ry="16"/>
+      <!-- Bowl: ellipse flaring out at the far end -->
+      <ellipse cx="332" cy="0" rx="68" ry="50"/>
+    </g>
+
+  </g>
+</svg>
