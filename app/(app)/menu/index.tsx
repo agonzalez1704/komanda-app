@@ -149,6 +149,12 @@ export default function MenuIndex() {
           </View>
           <IconButton
             glass
+            name="layers-outline"
+            accessibilityLabel="Combos"
+            onPress={() => router.push('/(app)/menu/combos' as any)}
+          />
+          <IconButton
+            glass
             name="options-outline"
             accessibilityLabel="Modifiers"
             onPress={() => router.push('/(app)/menu/modifiers')}
