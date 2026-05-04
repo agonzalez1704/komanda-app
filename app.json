@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.agonzalez1704.komanda-app"
+      "bundleIdentifier": "com.agonzalez1704.komanda-app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -44,6 +47,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "06a214f7-6495-47d8-84f2-e218c9cdcc1c"
+      }
+    },
+    "owner": "agonzalez1704"
   }
 }

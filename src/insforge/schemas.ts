@@ -125,6 +125,41 @@ export const ExpenseRow = z.object({
   local_uuid: uuid,
 });
 
+export const ComboRow = z.object({
+  id: uuid,
+  org_id: uuid,
+  name: z.string(),
+  category: z.string(),
+  price_cents: z.number().int().nonnegative(),
+  active: z.boolean(),
+  sort_order: z.number().int(),
+  created_at: iso,
+});
+export type ComboRowT = z.infer<typeof ComboRow>;
+
+export const ComboItemRow = z.object({
+  id: uuid,
+  combo_id: uuid,
+  product_id: uuid,
+  variant_id: uuid.nullable(),
+  quantity: z.number().int().positive(),
+  sort_order: z.number().int(),
+});
+export type ComboItemRowT = z.infer<typeof ComboItemRow>;
+
+export const KomandaComboRow = z.object({
+  id: uuid,
+  komanda_id: uuid,
+  org_id: uuid,
+  combo_id: uuid.nullable(),
+  name_snapshot: z.string(),
+  category_snapshot: z.string(),
+  price_cents_snapshot: z.number().int().nonnegative(),
+  created_at: iso,
+  local_uuid: uuid,
+});
+export type KomandaComboRowT = z.infer<typeof KomandaComboRow>;
+
 export type KomandaStatusT = z.infer<typeof KomandaStatus>;
 export type PaymentMethodT = z.infer<typeof PaymentMethod>;
 export type OrganizationRowT = z.infer<typeof OrganizationRow>;

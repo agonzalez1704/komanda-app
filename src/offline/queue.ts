@@ -17,7 +17,9 @@ export type MutationType =
   | 'delete_variant'
   | 'upsert_modifier'
   | 'delete_modifier'
-  | 'create_expense';
+  | 'create_expense'
+  | 'add_combo'
+  | 'remove_combo';
 
 export interface QueuedMutation<P = unknown> {
   id: string;

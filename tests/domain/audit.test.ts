@@ -4,6 +4,13 @@ const k = (over: Partial<any> = {}): any => ({
   id: 'k', status: 'closed', payment_method: 'cash', total_cents: 1000,
   opened_by_auth_user_id: 'u1',
   items: [{ product_category: 'Drinks', subtotal_cents: 1000 }],
+  combos: [],
+  ...over,
+});
+
+const ck = (over: Partial<any> = {}): any => ({
+  id: 'k', status: 'closed', payment_method: 'cash', total_cents: 1000,
+  opened_by_auth_user_id: 'u1', items: [], combos: [],
   ...over,
 });
 
@@ -117,5 +124,51 @@ describe('aggregateAudit', () => {
     expect(r.expenses.total).toBe(0);
     expect(r.net).toBe(0);
     expect(r.cashDrawerExpected).toBe(0);
+  });
+
+  it('combo prices contribute to earnings.total + byCategory', () => {
+    const r = aggregateAudit({
+      komandas: [ck({
+        payment_method: 'cash',
+        total_cents: 6900,
+        items: [],
+        combos: [{ id: 'c1', category_snapshot: 'Combos', price_cents_snapshot: 6900 }],
+      })],
+      expenses: [],
+      categories: [],
+    });
+    expect(r.earnings.total).toBe(6900);
+    expect(r.earnings.byCategory.Combos).toBe(6900);
+    expect(r.earnings.byPaymentMethod.cash).toBe(6900);
+  });
+
+  it('mixed komanda: free items + combo', () => {
+    const r = aggregateAudit({
+      komandas: [ck({
+        total_cents: 7900,
+        items: [{ product_category: 'Drinks', subtotal_cents: 1000 }],
+        combos: [{ id: 'c1', category_snapshot: 'Combos', price_cents_snapshot: 6900 }],
+      })],
+      expenses: [],
+      categories: [],
+    });
+    expect(r.earnings.total).toBe(7900);
+    expect(r.earnings.byCategory.Drinks).toBe(1000);
+    expect(r.earnings.byCategory.Combos).toBe(6900);
+  });
+
+  it('per-waiter totals include combo prices', () => {
+    const r = aggregateAudit({
+      komandas: [ck({
+        opened_by_auth_user_id: 'u1',
+        total_cents: 6900,
+        items: [],
+        combos: [{ id: 'c1', category_snapshot: 'Combos', price_cents_snapshot: 6900 }],
+      })],
+      expenses: [],
+      categories: [],
+    });
+    expect(r.earnings.perWaiter.u1.totalCents).toBe(6900);
+    expect(r.earnings.perWaiter.u1.count).toBe(1);
   });
 });

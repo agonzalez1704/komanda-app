@@ -8,6 +8,7 @@ export interface KomandaInput {
   total_cents: number | null;
   opened_by_auth_user_id: string;
   items: Array<{ product_category: string; subtotal_cents: number }>;
+  combos: Array<{ id: string; category_snapshot: string; price_cents_snapshot: number }>;
 }
 
 export interface ExpenseInput {
@@ -63,6 +64,14 @@ export function aggregateAudit(input: {
     perWaiter[k.opened_by_auth_user_id].totalCents += total;
     for (const it of k.items) {
       earningsByCat[it.product_category] = (earningsByCat[it.product_category] ?? 0) + it.subtotal_cents;
+    }
+    // Combo prices: server-recorded `total_cents` already includes combo
+    // amounts, so total / byPaymentMethod / perWaiter need no extra
+    // accumulation. Only byCategory must be split out from items, since
+    // child komanda_items have unit_price_cents = 0 and would otherwise
+    // leave combo revenue unattributed in the category breakdown.
+    for (const c of (k.combos ?? [])) {
+      earningsByCat[c.category_snapshot] = (earningsByCat[c.category_snapshot] ?? 0) + c.price_cents_snapshot;
     }
   }
 

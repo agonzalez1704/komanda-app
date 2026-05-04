@@ -5,7 +5,8 @@ import {
   type KomandaItemRowT,
   type KomandaItemModifierRowT,
 } from '@/insforge/queries/komandas';
-import type { KomandaRowT } from '@/insforge/schemas';
+import { listKomandaCombos } from '@/insforge/queries/komandaCombos';
+import type { KomandaComboRowT, KomandaRowT } from '@/insforge/schemas';
 
 export type KomandaItemWithMods = KomandaItemRowT & {
   modifiers: KomandaItemModifierRowT[];
@@ -14,6 +15,7 @@ export type KomandaItemWithMods = KomandaItemRowT & {
 export type UseKomandaDetailResult = {
   row: KomandaRowT | null;
   items: KomandaItemWithMods[];
+  combos: KomandaComboRowT[];
   isLoading: boolean;
   isMissing: boolean;
 };
@@ -41,6 +43,12 @@ export function useKomandaDetail(id: string | undefined): UseKomandaDetailResult
     enabled: !!id && !localOnly,
   });
 
+  const combos = useQuery({
+    queryKey: ['komanda', id, 'combos'],
+    queryFn: () => listKomandaCombos(id!),
+    enabled: !!id && !localOnly,
+  });
+
   const row: KomandaRowT | null = (komanda.data ?? cached) ?? null;
   const isLoading = !id || (komanda.isLoading && !cached);
   const isMissing = !isLoading && !row;
@@ -48,6 +56,7 @@ export function useKomandaDetail(id: string | undefined): UseKomandaDetailResult
   return {
     row,
     items: items.data ?? [],
+    combos: combos.data ?? [],
     isLoading,
     isMissing,
   };

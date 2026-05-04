@@ -15,6 +15,8 @@ import { deleteVariantHandler } from './deleteVariant';
 import { upsertModifierHandler } from './upsertModifier';
 import { deleteModifierHandler } from './deleteModifier';
 import { createExpenseHandler } from './createExpense';
+import { addComboHandler } from './addCombo';
+import { removeComboHandler } from './removeCombo';
 
 export const queueStore = createQueueStore();
 export const localStore = createLocalStore();
@@ -34,4 +36,6 @@ export const handlers: HandlerRegistry = {
   upsert_modifier: upsertModifierHandler({ localStore }),
   delete_modifier: deleteModifierHandler({ localStore }),
   create_expense: createExpenseHandler(),
+  add_combo: addComboHandler({ localStore, queueStore }),
+  remove_combo: removeComboHandler({ localStore }),
 };

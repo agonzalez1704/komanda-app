@@ -11,6 +11,7 @@ import { useKomandaDetail } from '@/features/komanda-detail/hooks/useKomandaDeta
 import { useReshareReceipt } from '@/features/komanda-detail/hooks/useReshareReceipt';
 import { fetchMyMembership } from '@/insforge/queries/membership';
 import { useRemoveItem } from '@/mutations/useRemoveItem';
+import { useRemoveKomandaCombo } from '@/mutations/useRemoveKomandaCombo';
 import { useUpdateStatus } from '@/mutations/useUpdateStatus';
 import { color } from '@/theme/tokens';
 import { useQuery } from '@tanstack/react-query';
@@ -22,16 +23,18 @@ export default function KomandaDetail() {
   console.log('[KomandaDetail] mount id=', id);
   const router = useRouter();
 
-  const { row, items, isLoading, isMissing } = useKomandaDetail(id);
+  const { row, items, combos, isLoading, isMissing } = useKomandaDetail(id);
   const membership = useQuery({
     queryKey: ['membership'],
     queryFn: fetchMyMembership,
   });
   const updateStatus = useUpdateStatus();
   const removeItem = useRemoveItem(id!);
+  const removeCombo = useRemoveKomandaCombo(id!);
   const reshare = useReshareReceipt({
     row,
     items,
+    combos,
     membership: membership.data,
   });
 
@@ -96,6 +99,7 @@ export default function KomandaDetail() {
           closedAtIso={row.closed_at}
           items={items.map((it) => ({
             id: it.id,
+            combo_id: it.combo_id,
             quantity: it.quantity,
             product_name_snapshot: it.product_name_snapshot,
             variant_name_snapshot: it.variant_name_snapshot,
@@ -103,6 +107,7 @@ export default function KomandaDetail() {
             modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
             note_text: it.note_text,
           }))}
+          combos={combos}
           totalCents={row.total_cents ?? total}
           paymentMethod={row.payment_method}
           bookingRef={row.id.split('-')[0].toUpperCase()}
@@ -122,8 +127,12 @@ export default function KomandaDetail() {
           />
           <ItemsList
             items={items}
+            combos={combos}
             closed={closed}
             onRemove={(itemId) => removeItem.mutate(itemId)}
+            onRemoveCombo={(comboId) =>
+              removeCombo.mutate({ combo_id: comboId })
+            }
           />
         </>
       )}

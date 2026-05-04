@@ -14,12 +14,22 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { fetchProducts, fetchVariants, fetchModifiers } from '@/insforge/queries/menu';
+import { listCombos, fetchCombo } from '@/insforge/queries/combos';
+import { fetchMyMembership } from '@/insforge/queries/membership';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { formatMXN } from '@/domain/money';
 import { useAddItem } from '@/mutations/useAddItem';
+import { useAddKomandaCombo } from '@/mutations/useAddKomandaCombo';
 import { announce, useReduceMotion } from '@/hooks/useReduceMotion';
-import type { ProductRowT, VariantRowT, ModifierRowT } from '@/insforge/schemas';
+import type {
+  ComboRowT,
+  ComboItemRowT,
+  ProductRowT,
+  VariantRowT,
+  ModifierRowT,
+} from '@/insforge/schemas';
 import type { KomandaItemRowT, KomandaItemModifierRowT } from '@/insforge/queries/komandas';
+import { ComboConfiguratorSheet } from '@/features/komanda-detail/components/ComboConfiguratorSheet';
 import {
   Button,
   Chip,
@@ -43,7 +53,18 @@ export default function AddItem() {
   const products = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const variants = useQuery({ queryKey: ['variants'], queryFn: fetchVariants });
   const modifiers = useQuery({ queryKey: ['modifiers'], queryFn: fetchModifiers });
+  const membership = useQuery({
+    queryKey: ['membership'],
+    queryFn: fetchMyMembership,
+  });
+  const orgId = membership.data?.org_id ?? '';
+  const combosList = useQuery({
+    queryKey: ['combos', orgId, 'active'],
+    queryFn: () => listCombos(orgId, { activeOnly: true }),
+    enabled: !!orgId,
+  });
   const addItem = useAddItem();
+  const addCombo = useAddKomandaCombo();
   const reduceMotion = useReduceMotion();
 
   const [search, setSearch] = useState('');
@@ -52,6 +73,24 @@ export default function AddItem() {
   const [customizeFor, setCustomizeFor] = useState<
     { product: ProductRowT; variant: VariantRowT | null } | null
   >(null);
+  const [comboConfig, setComboConfig] = useState<{
+    combo: ComboRowT;
+    composition: ComboItemRowT[];
+  } | null>(null);
+  const [loadingComboId, setLoadingComboId] = useState<string | null>(null);
+
+  async function openCombo(combo: ComboRowT) {
+    if (loadingComboId) return;
+    setLoadingComboId(combo.id);
+    try {
+      const { items: composition } = await fetchCombo(combo.id);
+      setComboConfig({ combo, composition });
+    } catch (err) {
+      console.warn('[add-item] fetchCombo failed', err);
+    } finally {
+      setLoadingComboId(null);
+    }
+  }
 
   function goCustom(prefill?: { name?: string }) {
     const q = prefill?.name?.trim() ? `?name=${encodeURIComponent(prefill.name.trim())}` : '';
@@ -317,6 +356,68 @@ export default function AddItem() {
         </ScrollView>
       </View>
 
+      {(combosList.data ?? []).length > 0 ? (
+        <View style={styles.combosWrap}>
+          <Text variant="label" style={styles.combosLabel}>
+            Combos
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.combosRail}
+          >
+            {(combosList.data ?? []).map((combo) => {
+              const loading = loadingComboId === combo.id;
+              return (
+                <Pressable
+                  key={combo.id}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    void openCombo(combo);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open combo ${combo.name}, ${formatMXN(combo.price_cents)}`}
+                  style={({ pressed }) => [
+                    styles.comboCardSmall,
+                    pressed && {
+                      opacity: 0.92,
+                      transform: [{ scale: 0.98 }],
+                    },
+                  ]}
+                >
+                  <View style={styles.comboIcon}>
+                    {loading ? (
+                      <ActivityIndicator size="small" color={palette.terracotta600} />
+                    ) : (
+                      <Ionicons
+                        name="layers"
+                        size={20}
+                        color={palette.terracotta600}
+                      />
+                    )}
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="bodyStrong" numberOfLines={1}>
+                      {combo.name}
+                    </Text>
+                    <Text
+                      mono
+                      style={{
+                        fontSize: 13,
+                        fontWeight: fontWeight.bold,
+                        color: palette.terracotta600,
+                      }}
+                    >
+                      {formatMXN(combo.price_cents)}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+
       <FlatList
         data={filteredProducts}
         keyExtractor={(p) => p.id}
@@ -431,6 +532,39 @@ export default function AddItem() {
           setCustomizeFor(null);
         }}
       />
+
+      {comboConfig ? (
+        <ComboConfiguratorSheet
+          combo={comboConfig.combo}
+          composition={comboConfig.composition}
+          products={products.data ?? []}
+          variants={variants.data ?? []}
+          modifiers={modifiers.data ?? []}
+          onClose={() => setComboConfig(null)}
+          onConfirm={async (overrides) => {
+            if (!komandaId) return;
+            const productNameById: Record<string, string> = Object.fromEntries(
+              (products.data ?? []).map((p) => [p.id, p.name]),
+            );
+            const variantNameById: Record<string, string | null> =
+              Object.fromEntries(
+                (variants.data ?? []).map((v) => [v.id, v.name as string | null]),
+              );
+            Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success,
+            ).catch(() => {});
+            await addCombo.mutateAsync({
+              komanda_id: komandaId,
+              combo: comboConfig.combo,
+              composition: comboConfig.composition,
+              childOverrides: overrides,
+              productNameById,
+              variantNameById,
+            });
+            setComboConfig(null);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -1101,6 +1235,40 @@ const styles = StyleSheet.create({
   emptyCtaStack: {
     paddingHorizontal: space.xl,
     gap: space.sm,
+  },
+
+  // Combos rail (above products)
+  combosWrap: {
+    paddingBottom: space.sm,
+    gap: space.xs,
+  },
+  combosLabel: {
+    paddingHorizontal: space.lg,
+  },
+  combosRail: {
+    paddingHorizontal: space.lg,
+    gap: space.sm,
+  },
+  comboCardSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    minWidth: 200,
+    borderRadius: radius.md,
+    backgroundColor: color.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.terracotta500,
+    ...shadow.sm,
+  },
+  comboIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.terracotta100,
   },
 
   grid: {

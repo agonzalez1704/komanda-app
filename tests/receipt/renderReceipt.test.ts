@@ -47,6 +47,68 @@ describe('renderReceipt', () => {
     expect(html).toContain('Order receipt');
   });
 
+  it('renders combo header + indented children with combo price and no per-child money column', () => {
+    const html = renderReceipt({
+      orgName: 'Tacos El Güero',
+      identifier: 'KOM-010',
+      customerLabel: 'Mesa 7',
+      waiterName: 'Juan',
+      openedAtIso: '2026-04-20T14:32:00Z',
+      closedAtIso: '2026-04-20T15:05:00Z',
+      items: [
+        {
+          quantity: 1,
+          product_name_snapshot: 'Agua mineral',
+          variant_name_snapshot: null,
+          unit_price_cents: 2500,
+          modifiers: [],
+          note_text: null,
+        },
+      ],
+      combos: [
+        {
+          id: 'c1',
+          name_snapshot: 'Combo Familiar',
+          price_cents_snapshot: 6900,
+          children: [
+            {
+              quantity: 3,
+              product_name_snapshot: 'Taco',
+              variant_name_snapshot: 'pastor',
+              unit_price_cents: 0,
+              modifiers: [{ name_snapshot: 'sin cebolla' }],
+              note_text: null,
+            },
+            {
+              quantity: 1,
+              product_name_snapshot: 'Coca-Cola',
+              variant_name_snapshot: null,
+              unit_price_cents: 0,
+              modifiers: [],
+              note_text: null,
+            },
+          ],
+        },
+      ],
+      totalCents: 9400,
+      paymentMethod: 'cash',
+      bookingRef: 'COMBO001',
+    });
+    // Combo header + price.
+    expect(html).toContain('Combo Familiar');
+    expect(html).toContain('$69.00');
+    // Children rendered inside the combo block.
+    expect(html).toContain('Taco');
+    expect(html).toContain('Coca-Cola');
+    expect(html).toContain('sin cebolla');
+    // Free-floating item still renders with its line price.
+    expect(html).toContain('Agua mineral');
+    expect(html).toContain('$25.00');
+    // The combo block container exists.
+    expect(html).toContain('combo-children');
+    expect(html).toContain('combo-header');
+  });
+
   it('falls back to identifier as heading when customerLabel is null', () => {
     const html = renderReceipt({
       orgName: 'Org',

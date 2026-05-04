@@ -30,6 +30,9 @@ export async function getQueuedProducerIds(store: QueueStore): Promise<Set<strin
     } else if (m.type === 'add_item') {
       const lu = (m.payload as { item_local_uuid?: unknown }).item_local_uuid;
       if (typeof lu === 'string') out.add(lu);
+    } else if (m.type === 'add_combo') {
+      const lu = (m.payload as { combo_local_uuid?: unknown }).combo_local_uuid;
+      if (typeof lu === 'string') out.add(lu);
     }
   }
   return out;

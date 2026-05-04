@@ -3,19 +3,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, Divider, Text } from '@/components/ui';
 import { formatMXN } from '@/domain/money';
 import type { KomandaItemWithMods } from '../hooks/useKomandaDetail';
+import type { KomandaComboRowT } from '@/insforge/schemas';
+import { groupItemsByCombo } from '@/domain/comboGrouping';
+import { ComboGroup } from './ComboGroup';
 import { color, fontWeight, hitSlop, palette, radius, space } from '@/theme/tokens';
 
 export function ItemsList({
   items,
+  combos,
   closed,
   onRemove,
+  onRemoveCombo,
 }: {
   items: KomandaItemWithMods[];
+  combos: KomandaComboRowT[];
   closed: boolean;
   onRemove: (id: string) => void;
+  onRemoveCombo?: (comboId: string) => void;
 }) {
   const lineCount = items.length;
   const itemCount = items.reduce((a, it) => a + it.quantity, 0);
+
+  const rows = groupItemsByCombo({
+    items: items.map((it) => ({
+      id: it.id,
+      combo_id: it.combo_id,
+      quantity: it.quantity,
+      product_name_snapshot: it.product_name_snapshot,
+      variant_name_snapshot: it.variant_name_snapshot,
+      unit_price_cents: it.unit_price_cents,
+      modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
+      note_text: it.note_text,
+    })),
+    combos: combos.map((c) => ({
+      id: c.id,
+      name_snapshot: c.name_snapshot,
+      category_snapshot: c.category_snapshot,
+      price_cents_snapshot: c.price_cents_snapshot,
+    })),
+  });
 
   return (
     <View style={styles.section}>
@@ -29,15 +55,33 @@ export function ItemsList({
         ) : null}
       </View>
       <Card padded={false}>
-        {lineCount === 0 ? <EmptyItems /> : (
-          items.map((it, idx) => (
-            <View key={it.id}>
-              <ItemRow
-                item={it}
-                closed={closed}
-                onRemove={() => onRemove(it.id)}
-              />
-              {idx < lineCount - 1 ? (
+        {rows.length === 0 ? (
+          <EmptyItems />
+        ) : (
+          rows.map((row, idx) => (
+            <View key={row.kind === 'combo' ? `c:${row.combo.id}` : `i:${row.item.id}`}>
+              {row.kind === 'combo' ? (
+                <ComboGroup
+                  combo={row.combo}
+                  children={row.children}
+                  tone="light"
+                  onRemove={
+                    !closed && onRemoveCombo
+                      ? () => onRemoveCombo(row.combo.id)
+                      : undefined
+                  }
+                />
+              ) : (
+                <ItemRow
+                  item={
+                    items.find((it) => it.id === row.item.id) ??
+                    (row.item as unknown as KomandaItemWithMods)
+                  }
+                  closed={closed}
+                  onRemove={() => onRemove(row.item.id)}
+                />
+              )}
+              {idx < rows.length - 1 ? (
                 <Divider style={{ marginLeft: 60 }} />
               ) : null}
             </View>
