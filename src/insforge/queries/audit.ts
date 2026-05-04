@@ -10,7 +10,9 @@ export async function fetchAuditAggregate(periodId: string): Promise<AuditAggreg
     insforge.database
       .from('komandas')
       .select(
-        'id, status, payment_method, total_cents, opened_by_auth_user_id, items:komanda_items(quantity, unit_price_cents, products(category))',
+        'id, status, payment_method, total_cents, opened_by_auth_user_id, ' +
+          'items:komanda_items(quantity, unit_price_cents, combo_id, products(category)), ' +
+          'combos:komanda_combos(id, category_snapshot, price_cents_snapshot)',
       )
       .eq('period_id', periodId),
     insforge.database
@@ -29,9 +31,19 @@ export async function fetchAuditAggregate(periodId: string): Promise<AuditAggreg
     payment_method: k.payment_method,
     total_cents: k.total_cents,
     opened_by_auth_user_id: k.opened_by_auth_user_id,
-    items: (k.items ?? []).map((it: any) => ({
-      product_category: it.products?.category ?? 'Other',
-      subtotal_cents: (it.quantity ?? 0) * (it.unit_price_cents ?? 0),
+    // Skip child items (combo_id != null) so their zero-price subtotal
+    // doesn't appear under the products category. The combo price is
+    // accounted for via the `combos` array below.
+    items: (k.items ?? [])
+      .filter((it: any) => it.combo_id == null)
+      .map((it: any) => ({
+        product_category: it.products?.category ?? 'Other',
+        subtotal_cents: (it.quantity ?? 0) * (it.unit_price_cents ?? 0),
+      })),
+    combos: (k.combos ?? []).map((c: any) => ({
+      id: c.id,
+      category_snapshot: c.category_snapshot,
+      price_cents_snapshot: c.price_cents_snapshot,
     })),
   }));
 
