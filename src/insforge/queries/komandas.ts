@@ -50,6 +50,7 @@ export const KomandaItemRow = z.object({
   variant_name_snapshot: z.string().nullable(),
   note_text: z.string().nullable(),
   created_at: z.string(),
+  combo_id: z.string().uuid().nullable(),
 });
 export type KomandaItemRowT = z.infer<typeof KomandaItemRow>;
 

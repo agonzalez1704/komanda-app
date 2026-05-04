@@ -28,6 +28,7 @@ export function useAddItem() {
         variant_name_snapshot: input.variant_name_snapshot,
         note_text: input.note_text,
         created_at: new Date().toISOString(),
+        combo_id: null,
         modifiers: input.modifiers.map((m, idx) => ({
           id: `${item_local_uuid}-m${idx}`,
           komanda_item_id: item_local_uuid,
