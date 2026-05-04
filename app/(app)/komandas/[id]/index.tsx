@@ -34,6 +34,7 @@ export default function KomandaDetail() {
   const reshare = useReshareReceipt({
     row,
     items,
+    combos,
     membership: membership.data,
   });
 

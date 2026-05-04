@@ -10,6 +10,13 @@ export interface ReceiptItem {
   note_text: string | null;
 }
 
+export interface ReceiptCombo {
+  id: string;
+  name_snapshot: string;
+  price_cents_snapshot: number;
+  children: ReceiptItem[];
+}
+
 export interface ReceiptData {
   orgName: string;
   identifier: string;
@@ -19,7 +26,11 @@ export interface ReceiptData {
   openedAtIso: string;
   /** Optional. When omitted, current time is used (e.g. close-flow snapshot). */
   closedAtIso?: string | null;
+  /** Free-floating items only — caller filters out combo children. */
   items: ReceiptItem[];
+  /** Combos placed on the komanda. Each combo prints as a header row +
+   * indented children with no per-row money column. */
+  combos?: ReceiptCombo[];
   totalCents: number;
   paymentMethod: PaymentMethodT;
   /** Short, deterministic id (e.g. komanda.id.split('-')[0].toUpperCase()). */
@@ -91,24 +102,44 @@ export function renderReceipt(d: ReceiptData): string {
 
   const heading = d.customerLabel && d.customerLabel.length > 0 ? d.customerLabel : d.identifier;
 
-  const itemRows = d.items
-    .map((it) => {
-      const name = `${esc(it.product_name_snapshot)}${it.variant_name_snapshot ? ` · ${esc(it.variant_name_snapshot)}` : ''}`;
-      const mods = it.modifiers.length > 0
-        ? `<div class="sub">${it.modifiers.map((m) => esc(m.name_snapshot)).join(' · ')}</div>`
-        : '';
-      const note = it.note_text ? `<div class="sub note">“${esc(it.note_text)}”</div>` : '';
-      const line = formatMXN(it.quantity * it.unit_price_cents);
-      return `
+  const renderItemRow = (it: ReceiptItem, opts: { showPrice: boolean }) => {
+    const name = `${esc(it.product_name_snapshot)}${it.variant_name_snapshot ? ` · ${esc(it.variant_name_snapshot)}` : ''}`;
+    const mods = it.modifiers.length > 0
+      ? `<div class="sub">${it.modifiers.map((m) => esc(m.name_snapshot)).join(' · ')}</div>`
+      : '';
+    const note = it.note_text ? `<div class="sub note">“${esc(it.note_text)}”</div>` : '';
+    const priceCol = opts.showPrice
+      ? `<div class="item-price">${formatMXN(it.quantity * it.unit_price_cents)}</div>`
+      : '';
+    return `
         <div class="item">
           <div class="item-main">
             <div class="item-name"><span class="qty">${it.quantity}× </span>${name}</div>
             ${mods}${note}
           </div>
-          <div class="item-price">${line}</div>
+          ${priceCol}
+        </div>`;
+  };
+
+  const comboBlocks = (d.combos ?? [])
+    .map((c) => {
+      const children = c.children
+        .map((it) => renderItemRow(it, { showPrice: false }))
+        .join('');
+      return `
+        <div class="combo">
+          <div class="combo-header">
+            <div class="combo-name">${esc(c.name_snapshot)}</div>
+            <div class="combo-price">${formatMXN(c.price_cents_snapshot)}</div>
+          </div>
+          <div class="combo-children">${children}</div>
         </div>`;
     })
     .join('');
+
+  const itemRows =
+    comboBlocks +
+    d.items.map((it) => renderItemRow(it, { showPrice: true })).join('');
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"/><style>
@@ -216,6 +247,36 @@ export function renderReceipt(d: ReceiptData): string {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+  .combo {
+    padding: 6px 0 8px;
+    border-bottom: 1px dashed #ECE4DA;
+    margin-bottom: 6px;
+  }
+  .combo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .combo-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1410;
+  }
+  .combo-price {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1410;
+    font-variant-numeric: tabular-nums;
+  }
+  .combo-children {
+    margin-left: 12px;
+    margin-top: 4px;
+    border-left: 2px solid #F5DDB6;
+    padding-left: 10px;
+  }
+  .combo-children .item-name { font-size: 11px; }
+  .combo-children .sub { font-size: 9px; }
   .meta-strip {
     display: flex;
     align-items: flex-start;
