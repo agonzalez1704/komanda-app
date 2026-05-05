@@ -121,9 +121,17 @@ export default function KomandaDetail() {
           />
           <StatusSegment
             current={row.status}
-            onChange={(next) =>
-              updateStatus.mutate({ komanda_id: id!, status: next })
-            }
+            itemCount={items.length + combos.length}
+            onChange={(next) => {
+              // 'closed' captures payment method via the close screen — never
+              // a direct status flip, otherwise we'd close without a payment
+              // method snapshot.
+              if (next === 'closed') {
+                router.push(`/(app)/komandas/${id}/close` as const);
+                return;
+              }
+              updateStatus.mutate({ komanda_id: id!, status: next });
+            }}
           />
           <ItemsList
             items={items}

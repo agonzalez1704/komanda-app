@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui';
@@ -146,18 +146,29 @@ export function KomandaTicket(props: KomandaTicketProps) {
   return (
     <View style={styles.pad}>
       <LinearGradient
-        colors={['#241812', '#1C1410', '#140D09']}
-        locations={[0, 0.55, 1]}
+        // Brand-amber gradient — Honey Glow → Amber Flame → deep amber.
+        // Mirrors RevenueCard so the closed-ticket reads as the same
+        // brand surface as the hero revenue tile (continuity = memorable).
+        colors={['#feab30', '#ff5b1f', '#7a1f00']}
+        locations={[0, 0.45, 1]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
         style={styles.card}
       >
-        {/* Saffron halo, mirrors RevenueCard's premium hero look */}
+        {/* Honey halo, smeared by the BlurView below into a soft glow. */}
         <View pointerEvents="none" style={styles.glow} />
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            tint="default"
+            intensity={32}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.4]}
+          colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.45]}
           style={StyleSheet.absoluteFillObject}
         />
 
@@ -360,19 +371,23 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: 'absolute',
-    width: 260,
-    height: 260,
-    right: -100,
-    top: -110,
-    borderRadius: 130,
-    backgroundColor: 'rgba(244,168,32,0.20)',
+    width: 300,
+    height: 300,
+    right: -120,
+    top: -130,
+    borderRadius: 150,
+    // Bright white-honey halo blooms in the top-right corner — matches
+    // RevenueCard so both brand surfaces share the same sunlight cue.
+    backgroundColor: 'rgba(255,237,200,0.55)',
   },
 
-  // Eyebrow + heading
+  // Top of card sits over Honey Glow → bright amber. White headlines
+  // wash out, so eyebrow / heading / subhead / time labels all use a
+  // deep warm near-black for AAA contrast on the bright gradient stops.
   eyebrow: {
     fontSize: 11,
     fontWeight: fontWeight.bold,
-    color: palette.saffron500,
+    color: 'rgba(42,13,0,0.78)',
     textTransform: 'uppercase',
     letterSpacing: 1.4,
   },
@@ -381,13 +396,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 30,
     fontWeight: fontWeight.heavy,
-    color: '#FFFFFF',
+    color: '#1a0a02',
     letterSpacing: -0.5,
   },
   subhead: {
     marginTop: 4,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.62)',
+    color: 'rgba(42,13,0,0.65)',
     letterSpacing: 0.2,
   },
 
@@ -402,19 +417,19 @@ const styles = StyleSheet.create({
   timeLabel: {
     fontSize: 10,
     fontWeight: fontWeight.bold,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(42,13,0,0.6)',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   timeValue: {
     fontSize: 18,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: '#1a0a02',
     letterSpacing: -0.2,
   },
   timeMeta: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(42,13,0,0.5)',
   },
   timeMid: {
     flex: 1,
@@ -425,12 +440,12 @@ const styles = StyleSheet.create({
   timeRule: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(42,13,0,0.22)',
   },
   timeDuration: {
     fontSize: 10,
     fontWeight: fontWeight.semibold,
-    color: palette.saffron500,
+    color: 'rgba(42,13,0,0.8)',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
@@ -464,7 +479,7 @@ const styles = StyleSheet.create({
   perfDash: {
     width: 6,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(42,13,0,0.28)',
   },
 
   // Items
@@ -479,11 +494,11 @@ const styles = StyleSheet.create({
   },
   itemMain: { flex: 1, gap: 2 },
   itemQty: {
-    color: palette.saffron500,
+    color: '#3a1505',
     fontWeight: fontWeight.bold,
   },
   itemName: {
-    color: '#FFFFFF',
+    color: '#1a0a02',
     fontSize: 14,
     lineHeight: 18,
     fontWeight: fontWeight.medium,
@@ -491,17 +506,17 @@ const styles = StyleSheet.create({
   itemSub: {
     fontSize: 11,
     lineHeight: 14,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(42,13,0,0.6)',
     marginLeft: 14,
   },
   itemNote: { fontStyle: 'italic' },
   itemPrice: {
-    color: '#FFFFFF',
+    color: '#1a0a02',
     fontSize: 14,
     fontWeight: fontWeight.semibold,
   },
   itemEmpty: {
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(42,13,0,0.6)',
     fontSize: 13,
     fontStyle: 'italic',
   },
@@ -519,22 +534,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(42,13,0,0.22)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,237,200,0.18)',
     gap: 2,
   },
   metaLabel: {
     fontSize: 10,
     fontWeight: fontWeight.bold,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(42,13,0,0.7)',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   metaValue: {
     fontSize: 14,
     fontWeight: fontWeight.semibold,
-    color: '#FFFFFF',
+    color: '#1a0a02',
   },
 
   // Total
@@ -542,7 +557,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
+    borderTopColor: 'rgba(42,13,0,0.18)',
     gap: 2,
   },
   totalRow: {
@@ -553,7 +568,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 14,
     fontWeight: fontWeight.semibold,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(42,13,0,0.72)',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -562,12 +577,12 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     includeFontPadding: false,
     fontWeight: fontWeight.heavy,
-    color: '#FFFFFF',
+    color: '#1a0a02',
     letterSpacing: -0.4,
   },
   totalCaption: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(42,13,0,0.55)',
     textAlign: 'right',
     textTransform: 'uppercase',
     letterSpacing: 1,

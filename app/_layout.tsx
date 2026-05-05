@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { QueryProvider } from '@/offline/QueryProvider';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -15,10 +16,10 @@ function QueueBoot() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <QueryProvider>
-        <QueueBoot />
-        <View style={styles.root}>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <QueryProvider>
+          <QueueBoot />
           <OfflineBanner />
           <Stack
             screenOptions={{
@@ -30,10 +31,10 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(app)" />
           </Stack>
-        </View>
-        <StatusBar style="dark" />
-      </QueryProvider>
-    </SafeAreaProvider>
+          <StatusBar style="dark" />
+        </QueryProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -3,10 +3,28 @@ import { z } from 'zod';
 const uuid = z.string().uuid();
 const iso = z.string().datetime({ offset: true }).or(z.string());
 
+export const SubscriptionStatus = z.enum([
+  'trialing',
+  'active',
+  'past_due',
+  'canceled',
+  'unpaid',
+  'expired',
+]);
+export type SubscriptionStatusT = z.infer<typeof SubscriptionStatus>;
+
 export const OrganizationRow = z.object({
   id: uuid,
   name: z.string(),
   created_at: iso,
+  // Subscription state (added in migration 0011_subscriptions.sql).
+  // Nullable on the schema only as a defensive read — backfill made
+  // trial_ends_at NOT NULL in the DB.
+  subscription_status: SubscriptionStatus.default('trialing'),
+  trial_ends_at: iso,
+  current_period_end: iso.nullable().optional(),
+  stripe_customer_id: z.string().nullable().optional(),
+  stripe_subscription_id: z.string().nullable().optional(),
 });
 
 const Role = z.enum(['admin', 'cashier', 'waiter', 'cook']);

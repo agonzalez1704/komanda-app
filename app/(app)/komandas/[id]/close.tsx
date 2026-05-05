@@ -95,6 +95,10 @@ export default function Close() {
     0,
   );
   const total = itemsTotal + combosTotal;
+  // Empty-komanda guard: nothing to charge means closing is meaningless and
+  // would generate a $0 receipt. Block at the action button.
+  const lineCount = (items.data?.length ?? 0) + (combos.data?.length ?? 0);
+  const empty = lineCount === 0;
 
   async function confirmAndShare() {
     if (!method || !row || !membership.data || submitting) return;
@@ -188,9 +192,9 @@ export default function Close() {
       footer={
         <GlassSurface radius={radius.xxl} contentStyle={styles.actionBar}>
           <Button
-            label="Confirm & share receipt"
+            label={empty ? 'Sin platillos para cobrar' : 'Confirmar y compartir recibo'}
             onPress={confirmAndShare}
-            disabled={!method}
+            disabled={!method || empty}
             loading={submitting}
             leadingIcon={<Ionicons name="share-outline" size={18} color={color.primaryOn} />}
           />

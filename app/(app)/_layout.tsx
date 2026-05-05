@@ -7,6 +7,9 @@ import { clearToken, insforge } from '@/insforge/client';
 import { resetCreateKomandaContext } from '@/offline/handlers/createKomanda';
 import { formatError } from '@/offline/processor';
 import { color, fontWeight, radius, space } from '@/theme/tokens';
+import { effectiveStatus, hasAccess, type OrgBilling } from '@/billing';
+import { BillingBanner } from '@/billing/BillingBanner';
+import { BillingPaywall } from '@/billing/BillingPaywall';
 
 /**
  * True when the error message looks like an auth/permission failure rather
@@ -74,14 +77,25 @@ export default function AppLayout() {
   }
   if (membership.data === null) return <Redirect href="/(auth)/no-org" />;
 
+  // Subscription gate. The org row carries trial + Stripe state (migration
+  // 0011_subscriptions.sql). Block access entirely when the org has lost it
+  // — admin must update payment in the web billing portal.
+  const org = membership.data.organization as OrgBilling;
+  if (!hasAccess(org)) {
+    return <BillingPaywall org={org} status={effectiveStatus(org)} />;
+  }
+
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: color.bg },
-        animation: 'slide_from_right',
-      }}
-    />
+    <View style={{ flex: 1, backgroundColor: color.bg }}>
+      <BillingBanner org={org} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: color.bg },
+          animation: 'slide_from_right',
+        }}
+      />
+    </View>
   );
 }
 

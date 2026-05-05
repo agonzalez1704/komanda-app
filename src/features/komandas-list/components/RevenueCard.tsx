@@ -1,9 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui';
 import { formatMXN } from '@/domain/money';
-import { fontWeight, palette, radius, space } from '@/theme/tokens';
+import { fontWeight, radius, space } from '@/theme/tokens';
 
 export function RevenueCard({
   dayRevenueCents,
@@ -19,17 +19,36 @@ export function RevenueCard({
   return (
     <View style={styles.pad}>
       <LinearGradient
-        colors={['#241812', '#1C1410', '#140D09']}
-        locations={[0, 0.55, 1]}
+        // Brand-amber gradient: Honey Glow → Amber Flame → deepest amber.
+        // The hero "today's revenue" card carries the brand color so the
+        // money number IS the brand expression. Replaces the previous
+        // brown-coffee gradient that read as muddy / non-vivid.
+        colors={['#feab30', '#ff5b1f', '#7a1f00']}
+        locations={[0, 0.45, 1]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
         style={styles.card}
       >
         <View pointerEvents="none" style={styles.glow} />
+        {/* Smear the highlight halo into a real radial glow. Same trick as
+            WarmCanvas: a fullscreen BlurView captures whatever is drawn
+            beneath it (the amber gradient + the hard-edged glow disc)
+            and outputs a soft wash. Without this the glow renders as a
+            crisp colored circle, not a glow. iOS only — Android's
+            UIVisualEffect equivalent doesn't capture sibling layers
+            reliably so we leave the disc as-is there. */}
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            tint="default"
+            intensity={32}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.4]}
+          colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.45]}
           style={StyleSheet.absoluteFillObject}
         />
         <Text style={styles.eyebrow}>Today&rsquo;s revenue</Text>
@@ -40,9 +59,9 @@ export function RevenueCard({
           from {closedCount} closed komanda{closedCount === 1 ? '' : 's'}
         </Text>
         <View style={styles.stats}>
-          <HeroStat label="Open" value={activeCount} tint={palette.saffron500} />
-          <HeroStat label="Closed" value={closedCount} tint="#8AE0A2" />
-          <HeroStat label="Items sold" value={itemsSold} tint="#FFFFFF" />
+          <HeroStat label="Open" value={activeCount} tint="#1a0a02" />
+          <HeroStat label="Closed" value={closedCount} tint="#0d4a22" />
+          <HeroStat label="Items sold" value={itemsSold} tint="#1a0a02" />
         </View>
       </LinearGradient>
     </View>
@@ -94,17 +113,24 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: 'absolute',
-    width: 240,
-    height: 240,
-    right: -90,
-    top: -90,
-    borderRadius: 120,
-    backgroundColor: 'rgba(244,168,32,0.18)',
+    width: 280,
+    height: 280,
+    right: -110,
+    top: -110,
+    borderRadius: 140,
+    // Bright white-honey halo blooms in the top-right corner — reads as
+    // sunlight catching the amber face of the card after the BlurView
+    // smears it.
+    backgroundColor: 'rgba(255,237,200,0.55)',
   },
+  // Top of card sits over Honey Glow → bright amber. White washes out
+  // there, so headlines + money use a deep warm near-black for AAA
+  // contrast against the bright gradient stops. Stats live at the
+  // bottom (deep amber) where light text reads cleanly.
   eyebrow: {
     fontSize: 11,
     fontWeight: fontWeight.bold,
-    color: palette.saffron500,
+    color: 'rgba(42,13,0,0.78)',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -113,13 +139,13 @@ const styles = StyleSheet.create({
     fontSize: 38,
     lineHeight: 42,
     fontWeight: fontWeight.heavy,
-    color: '#FFFFFF',
+    color: '#1a0a02',
     letterSpacing: -0.8,
   },
   subtitle: {
     marginTop: 4,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(42,13,0,0.72)',
   },
   stats: {
     flexDirection: 'row',
@@ -132,9 +158,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(42,13,0,0.22)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,237,200,0.28)',
   },
   heroStatValue: {
     fontSize: 22,
@@ -146,7 +172,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 11,
     fontWeight: fontWeight.medium,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(42,13,0,0.72)',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },

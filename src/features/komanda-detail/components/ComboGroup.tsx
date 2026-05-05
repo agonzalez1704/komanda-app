@@ -206,7 +206,7 @@ const darkStyles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(244,168,32,0.18)',
+    backgroundColor: 'rgba(254,171,48,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -240,7 +240,7 @@ const darkStyles = StyleSheet.create({
     gap: 4,
     paddingLeft: 22,
     borderLeftWidth: 1,
-    borderLeftColor: 'rgba(244,168,32,0.25)',
+    borderLeftColor: 'rgba(254,171,48,0.25)',
     marginLeft: 11,
   },
   childRow: {

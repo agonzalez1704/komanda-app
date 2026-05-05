@@ -138,6 +138,7 @@ export function ComboItemPicker({
             >
               {filtered.map((p) => {
                 const vs = variantsFor(p);
+                // No variants: single tap = pick product.
                 if (vs.length === 0) {
                   return (
                     <Pressable
@@ -160,23 +161,43 @@ export function ComboItemPicker({
                     </Pressable>
                   );
                 }
+                // With variants: product itself is the default pick (any
+                // variant). Variants below are optional, indented sub-picks
+                // for when a combo really must lock a specific one.
                 return (
                   <View key={p.id} style={styles.productGroup}>
-                    <Text variant="label" style={{ paddingHorizontal: space.sm }}>
-                      {p.name}
-                    </Text>
+                    <Pressable
+                      onPress={() => pick(p, null)}
+                      style={({ pressed }) => [
+                        styles.row,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text variant="bodyStrong" numberOfLines={1}>
+                          {p.name}
+                        </Text>
+                        <Text variant="caption">
+                          {p.category} · cualquier variante
+                        </Text>
+                      </View>
+                      <Text mono style={styles.price}>
+                        {formatMXN(p.price_cents)}
+                      </Text>
+                    </Pressable>
                     {vs.map((v) => (
                       <Pressable
                         key={v.id}
                         onPress={() => pick(p, v)}
                         style={({ pressed }) => [
                           styles.row,
+                          styles.rowChild,
                           pressed && { opacity: 0.85 },
                         ]}
                       >
                         <View style={{ flex: 1 }}>
                           <Text variant="body" numberOfLines={1}>
-                            {v.name}
+                            ↳ {v.name}
                           </Text>
                         </View>
                         <Text mono style={styles.price}>
@@ -202,9 +223,13 @@ export function ComboItemPicker({
               <Text variant="bodyStrong" numberOfLines={1}>
                 {selected.product.name}
               </Text>
-              {selected.variant ? (
-                <Text variant="footnote">{selected.variant.name}</Text>
-              ) : null}
+              <Text variant="footnote">
+                {selected.variant
+                  ? selected.variant.name
+                  : variantsFor(selected.product).length > 0
+                    ? 'Cualquier variante'
+                    : selected.product.category}
+              </Text>
               <Text mono style={styles.price}>
                 {formatMXN(selected.product.price_cents)}
               </Text>
@@ -317,6 +342,10 @@ const styles = StyleSheet.create({
     borderColor: color.border,
   },
   productGroup: { gap: space.xs, paddingTop: space.xs },
+  rowChild: {
+    marginLeft: space.lg,
+    backgroundColor: color.surfaceAlt,
+  },
   price: {
     fontSize: 14,
     fontWeight: fontWeight.bold,

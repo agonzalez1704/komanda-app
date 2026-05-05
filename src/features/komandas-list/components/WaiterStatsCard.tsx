@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     right: -90,
     top: -90,
     borderRadius: 120,
-    backgroundColor: 'rgba(244,168,32,0.18)',
+    backgroundColor: 'rgba(254,171,48,0.18)',
   },
   eyebrow: {
     fontSize: 11,

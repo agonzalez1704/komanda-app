@@ -83,7 +83,7 @@ export function createKomandaHandler(deps: {
         opened_by_auth_user_id: ctx.authUserId,
         number,
         display_name: payload.display_name,
-        status: 'open',
+        status: 'pending',
         opened_at: payload.opened_at,
         local_uuid: payload.local_uuid,
       })

@@ -1,57 +1,96 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassSurface, Text } from '@/components/ui';
 import type { KomandaStatusT } from '@/insforge/schemas';
+import {
+  blockReasonMessage,
+  canTransitionStatus,
+  effectiveStatus,
+  transitionBlockedReason,
+  type ManualStatus,
+} from '@/domain/komandaStatus';
 import { color, fontWeight, radius, space } from '@/theme/tokens';
 
-type VisibleStatus = Exclude<KomandaStatusT, 'closed'>;
-
 const STATUSES: {
-  key: VisibleStatus;
+  key: ManualStatus;
   label: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
 }[] = [
-  { key: 'open', label: 'Open', icon: 'ellipse-outline' },
-  { key: 'pending', label: 'Pending', icon: 'time-outline' },
-  { key: 'served', label: 'Served', icon: 'checkmark-circle-outline' },
+  { key: 'pending', label: 'Pendiente', icon: 'time-outline' },
+  { key: 'served', label: 'Servida', icon: 'checkmark-circle-outline' },
+  { key: 'closed', label: 'Cobrada', icon: 'card-outline' },
 ];
 
 export function StatusSegment({
   current,
+  itemCount,
   onChange,
 }: {
   current: KomandaStatusT;
-  onChange: (next: VisibleStatus) => void;
+  itemCount: number;
+  onChange: (next: ManualStatus) => void;
 }) {
+  // Collapse legacy 'open' onto 'pending' for highlight purposes.
+  const effective = effectiveStatus(current);
+
+  function attempt(next: ManualStatus) {
+    const blocked = transitionBlockedReason(current, next, { itemCount });
+    if (blocked) {
+      Alert.alert('No se puede', blockReasonMessage(blocked), [
+        { text: 'Entendido' },
+      ]);
+      return;
+    }
+    onChange(next);
+  }
+
   return (
     <View style={styles.section}>
-      <Text variant="label">Status</Text>
+      <Text variant="label">Estado</Text>
       <GlassSurface radius={radius.full} contentStyle={styles.segment}>
         {STATUSES.map((s) => {
-          const active = current === s.key;
+          const active = effective === s.key;
+          // A chip is interactive only when the lifecycle allows the move.
+          // The current status is always shown but greyed/locked.
+          const canMove = canTransitionStatus(current, s.key);
+          const disabled = !active && !canMove;
           return (
             <Pressable
               key={s.key}
-              onPress={() => onChange(s.key)}
+              onPress={() => {
+                if (!disabled && !active) attempt(s.key);
+              }}
+              disabled={disabled}
               accessibilityRole="button"
-              accessibilityLabel={`Set status to ${s.label}`}
-              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Cambiar a ${s.label}`}
+              accessibilityState={{ selected: active, disabled }}
               style={({ pressed }) => [
                 styles.chip,
                 active && styles.chipActive,
-                pressed && !active && { opacity: 0.85 },
+                disabled && styles.chipDisabled,
+                pressed && !active && !disabled && { opacity: 0.85 },
               ]}
             >
               <Ionicons
                 name={s.icon}
                 size={16}
-                color={active ? color.primaryOn : color.textSecondary}
+                color={
+                  active
+                    ? color.primaryOn
+                    : disabled
+                      ? color.textTertiary
+                      : color.textSecondary
+                }
               />
               <Text
                 style={{
                   fontSize: 13,
                   fontWeight: fontWeight.semibold,
-                  color: active ? color.primaryOn : color.textPrimary,
+                  color: active
+                    ? color.primaryOn
+                    : disabled
+                      ? color.textTertiary
+                      : color.textPrimary,
                 }}
               >
                 {s.label}
@@ -88,5 +127,8 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     backgroundColor: color.primary,
+  },
+  chipDisabled: {
+    opacity: 0.45,
   },
 });

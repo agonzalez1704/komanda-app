@@ -1,27 +1,61 @@
 /**
  * Design tokens for komanda-app.
  *
- * Warm Mexican-inspired palette for a taco-restaurant POS: terracotta primary,
- * saffron accent, linen surfaces. Anything visual in the app should pull from
- * here — no raw hex literals in component stylesheets.
+ * Vivid Mexican-inspired palette: amber gradient brand mark, signal blue
+ * for primary actions, warm linen surfaces. The brand uses a single
+ * chromatic gradient (Amber Flame → Honey Glow) on a monochrome canvas;
+ * Signal Blue creates intentional temperature contrast for interactive
+ * CTAs so identity and action stay visually separable. No raw hex
+ * literals in component stylesheets — pull from here.
  */
 
 import type { TextStyle, ViewStyle } from 'react-native';
 
 export const palette = {
-  // Brand
-  terracotta50: '#FBEDE6',
-  terracotta100: '#F5D2C1',
-  terracotta500: '#C84B1E', // primary CTA
-  terracotta600: '#A83B14',
-  terracotta700: '#7E2A0D',
+  // Brand — Amber gradient (Amber Flame → Honey Glow).
+  // Used for the logo mark, money surfaces, brand washes. NOT for CTAs.
+  amber50: '#FFF1E0',
+  amber100: '#FFD8B0',
+  amber400: '#feab30', // Honey Glow — gradient end, highlight tone
+  amber500: '#ff5b1f', // Amber Flame — gradient start, brand mark anchor
+  amber600: '#e8480f', // pressed / depth shade for amber surfaces
+  amber700: '#8a2400', // deepest amber, shadow tint
+
+  // Action — Signal Blue family.
+  // Cool blue against the warm-amber brand creates the temperature contrast
+  // that separates identity (amber) from interactive action (blue).
+  blue50: '#E8F3FF',
+  blue100: '#C7E3FF',
+  blue500: '#0088ff', // Signal Blue — primary CTA fill
+  blue600: '#1c95ff', // Bright Blue — pressed/active lift (lighter on press)
+  blue700: '#006acc', // hover/dark shade for accessibility text on tints
+
+  // Status badge palette — vivid, eye-catching colors for komanda
+  // lifecycle pills. Designed to POP against the warm linen canvas so a
+  // waiter scanning the list spots state at a glance.
+  vividRed500: '#ff383c',   // Alert Red — pending (urgency, "serve me")
+  vividRed700: '#b00d12',   // pressed / dark text on red tint
+  vividGreen500: '#34c759', // Vivid Green — served (delivered, success)
+  vividGreen700: '#0d8f3a', // pressed / dark text on green tint
+  vividMagenta500: '#cb30e0', // Electric Magenta — closed (paid, completion)
+  vividMagenta700: '#7e1690', // pressed / dark text on magenta tint
+
+  // Legacy terracotta keys — aliased to amber so any component still
+  // referencing `palette.terracotta*` automatically picks up the new brand
+  // tone instead of crashing or rendering brown.
+  terracotta50: '#FFF1E0',
+  terracotta100: '#FFD8B0',
+  terracotta500: '#ff5b1f',
+  terracotta600: '#e8480f',
+  terracotta700: '#8a2400',
 
   saffron50: '#FEF6E3',
   saffron100: '#FCE6B2',
-  saffron500: '#F4A820', // accent / highlight
-  saffron600: '#CC8A10',
+  saffron500: '#feab30', // realigned to Honey Glow for visual consistency
+  saffron600: '#d68a14',
 
-  // Surfaces (warm neutrals)
+  // Surfaces (warm neutrals — kept as-is; brand color shift doesn't change
+  // the canvas temperature, only the chromatic accents on top).
   linen: '#FBF6EF',
   bone: '#F5EDE1',
   sand: '#ECE1CF',
@@ -74,14 +108,22 @@ export const color = {
   border: palette.ink100,
   borderStrong: palette.ink200,
 
-  // Brand
-  primary: palette.terracotta500,
-  primaryPressed: palette.terracotta600,
-  primaryMuted: palette.terracotta50,
+  // Action — Signal Blue is the primary CTA color. Buttons, FABs, links.
+  primary: palette.blue500,
+  primaryPressed: palette.blue600,
+  primaryMuted: palette.blue50,
   primaryOn: palette.white,
 
-  accent: palette.saffron500,
-  accentMuted: palette.saffron50,
+  // Brand mark — amber gradient. Use for logo, money totals, hero surfaces
+  // where the brand identity shows through. Distinct from `primary` so the
+  // CTA color and brand color don't fight each other.
+  brand: palette.amber500,
+  brandSoft: palette.amber400, // Honey Glow tone for highlights / gradient stops
+  brandMuted: palette.amber50,
+  brandOn: palette.white,
+
+  accent: palette.amber400,
+  accentMuted: palette.amber50,
 
   // Semantic
   success: palette.success500,
@@ -155,18 +197,35 @@ export const glass = {
     } as ViewStyle,
   },
   /** Tinted chrome — primary FAB, live-pinned calls to action.
-   *  Overlay is translucent terracotta so the BlurView picks up the warm
-   *  canvas behind it (specular + shadow do the heavy lifting for "glass"
-   *  feel). Previously this was 0.88 which read as a flat button. */
+   *  Overlay is translucent Signal Blue so the BlurView picks up the warm
+   *  canvas behind it. Cool blue against the warm-amber brand creates the
+   *  intentional temperature contrast that makes CTAs visually pop. */
   primary: {
     tint: 'light' as 'light' | 'dark' | 'default',
     intensity: 55,
-    overlay: 'rgba(200, 75, 30, 0.62)',
-    border: 'rgba(255, 255, 255, 0.28)',
-    specular: 'rgba(255, 255, 255, 0.45)',
+    overlay: 'rgba(0, 136, 255, 0.62)',
+    border: 'rgba(255, 255, 255, 0.32)',
+    specular: 'rgba(255, 255, 255, 0.55)',
     shadow: {
-      shadowColor: palette.terracotta700,
-      shadowOpacity: 0.30,
+      shadowColor: palette.blue700,
+      shadowOpacity: 0.32,
+      shadowRadius: 22,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 10,
+    } as ViewStyle,
+  },
+  /** Brand chrome — amber gradient surfaces (logo plate, hero ribbons).
+   *  Distinct from `primary` so brand identity and action stay visually
+   *  separable. */
+  brand: {
+    tint: 'light' as 'light' | 'dark' | 'default',
+    intensity: 55,
+    overlay: 'rgba(255, 91, 31, 0.55)',
+    border: 'rgba(255, 255, 255, 0.32)',
+    specular: 'rgba(255, 255, 255, 0.55)',
+    shadow: {
+      shadowColor: palette.amber700,
+      shadowOpacity: 0.32,
       shadowRadius: 22,
       shadowOffset: { width: 0, height: 10 },
       elevation: 10,
@@ -186,16 +245,17 @@ export const canvas = {
   topWarm: '#FFF7EA',
   midLinen: palette.linen,
   bottomSand: '#F6EADA',
-  /** Saffron halo tints — positioned top-right by default.
+  /** Honey Glow halo — top-right by default.
    *  Alphas are tuned for *post-blur* density: the WarmCanvas BlurView
    *  smears them, so values here are dialed down from the HTML preview
    *  where the preview relied on `filter: blur()` instead. */
-  haloSaffron: 'rgba(244, 168, 32, 0.30)',
-  haloSaffronSoft: 'rgba(244, 168, 32, 0.16)',
-  /** Terracotta halo — bottom-left. */
-  haloTerracotta: 'rgba(200, 75, 30, 0.20)',
-  /** Cool green halo — bottom-right, keeps the warm palette from feeling one-note. */
-  haloJade: 'rgba(47, 138, 79, 0.10)',
+  haloSaffron: 'rgba(254, 171, 48, 0.32)',
+  haloSaffronSoft: 'rgba(254, 171, 48, 0.18)',
+  /** Amber Flame halo — bottom-left, anchors the brand temperature. */
+  haloTerracotta: 'rgba(255, 91, 31, 0.22)',
+  /** Signal Blue halo — bottom-right, intentional cool counterweight that
+   *  visually echoes the CTA color on every screen. */
+  haloJade: 'rgba(0, 136, 255, 0.14)',
 } as const;
 
 /** 4pt spacing scale. */

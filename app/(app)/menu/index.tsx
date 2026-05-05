@@ -1,19 +1,24 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Redirect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { fetchAllProducts, fetchAllVariants } from '@/insforge/queries/menu';
 import { fetchMyMembership } from '@/insforge/queries/membership';
 import { can } from '@/auth/permissions';
 import { formatMXN } from '@/domain/money';
+import { useDeleteProduct } from '@/mutations/useDeleteProduct';
 import type { ProductRowT, VariantRowT } from '@/insforge/schemas';
 import {
   Card,
@@ -21,6 +26,8 @@ import {
   GlassSurface,
   IconButton,
   Screen,
+  SwipeAction,
+  swipeActionsWrapStyle,
   Text,
   TextField,
 } from '@/components/ui';
@@ -57,8 +64,29 @@ export default function MenuIndex() {
 
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const deleteProduct = useDeleteProduct();
 
-  const allProducts = products.data ?? [];
+  function confirmDelete(p: ProductRowT) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    Alert.alert(
+      'Eliminar producto',
+      `¿Seguro que quieres eliminar “${p.name}”? Sus variantes también se ocultarán.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => deleteProduct.mutate(p.id),
+        },
+      ],
+    );
+  }
+
+  // Soft-delete: backend marks `active=false` so existing komandas keep their
+  // product references intact (receipts, audit history). The management list
+  // hides inactive rows so swipe-to-delete actually removes them visually —
+  // showing them with a "Hidden" badge surprised users who expected gone.
+  const allProducts = (products.data ?? []).filter((p) => p.active);
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return allProducts;
@@ -106,13 +134,10 @@ export default function MenuIndex() {
 
   const totalProducts = allProducts.length;
   const visibleCount = filteredProducts.length;
-  const hiddenCount = allProducts.filter((p) => !p.active).length;
   const subtitle = totalProducts
     ? search.trim()
       ? `${visibleCount} of ${totalProducts} products`
-      : `${totalProducts} products${
-          hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ''
-        }`
+      : `${totalProducts} products`
     : null;
 
   // Liquid Glass: warm canvas paints behind everything. Top nav pill +
@@ -252,6 +277,7 @@ export default function MenuIndex() {
                 onPress={() =>
                   router.push(`/(app)/menu/product/${item.product.id}`)
                 }
+                onDelete={() => confirmDelete(item.product)}
               />
             );
           }}
@@ -345,76 +371,120 @@ function ProductRow({
   product,
   variantCount,
   onPress,
+  onDelete,
 }: {
   product: ProductRowT;
   variantCount: number;
   onPress: () => void;
+  onDelete: () => void;
 }) {
   const tint = pickRowTint(product.id);
+  const swipeRef = useRef<SwipeableMethods>(null);
+
+  function handleEdit() {
+    swipeRef.current?.close();
+    onPress();
+  }
+  function handleDelete() {
+    swipeRef.current?.close();
+    onDelete();
+  }
+
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Edit ${product.name}, ${formatMXN(
-        product.price_cents,
-      )}${!product.active ? ', hidden' : ''}`}
-      style={({ pressed }) => [
-        styles.rowPress,
-        pressed && { opacity: 0.95, transform: [{ scale: 0.995 }] },
-      ]}
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+      enableTrackpadTwoFingerGesture
+      renderRightActions={(progress) => (
+        <View style={swipeActionsWrapStyle}>
+          <SwipeAction
+            progress={progress}
+            order={0}
+            onPress={handleEdit}
+            label="Editar"
+            icon="create-outline"
+            tone="info"
+            accessibilityLabel={`Edit ${product.name}`}
+          />
+          <SwipeAction
+            progress={progress}
+            order={1}
+            onPress={handleDelete}
+            label="Eliminar"
+            icon="trash-outline"
+            tone="danger"
+            accessibilityLabel={`Delete ${product.name}`}
+          />
+        </View>
+      )}
     >
-      <Card padded={false} style={styles.row}>
-        <View style={[styles.rowIcon, { backgroundColor: tint.bg }]}>
-          <Ionicons name="fast-food" size={22} color={tint.fg} />
-        </View>
-        <View style={styles.rowBody}>
-          <View style={styles.rowTitle}>
-            <Text
-              variant="bodyStrong"
-              numberOfLines={1}
-              style={[
-                { flex: 1 },
-                !product.active && { color: color.textSecondary },
-              ]}
-            >
-              {product.name}
-            </Text>
-            {!product.active ? (
-              <View style={styles.inactiveBadge}>
-                <Text variant="caption" style={{ color: color.warningText }}>
-                  Hidden
-                </Text>
-              </View>
-            ) : null}
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${product.name}, ${formatMXN(
+          product.price_cents,
+        )}${!product.active ? ', hidden' : ''}`}
+        accessibilityHint="Swipe left for edit and delete actions"
+        style={({ pressed }) => [
+          styles.rowPress,
+          pressed && { opacity: 0.95, transform: [{ scale: 0.995 }] },
+        ]}
+      >
+        <Card padded={false} style={styles.row}>
+          <View style={[styles.rowIcon, { backgroundColor: tint.bg }]}>
+            <Ionicons name="fast-food" size={22} color={tint.fg} />
           </View>
-          <View style={styles.rowMeta}>
-            <Text
-              mono
-              style={{
-                fontSize: 15,
-                fontWeight: fontWeight.bold,
-                color: palette.terracotta600,
-              }}
-            >
-              {formatMXN(product.price_cents)}
-            </Text>
-            {variantCount > 0 ? (
-              <>
-                <View style={styles.rowMetaDot} />
-                <Text variant="footnote">
-                  {variantCount} variant{variantCount === 1 ? '' : 's'}
-                </Text>
-              </>
-            ) : null}
+          <View style={styles.rowBody}>
+            <View style={styles.rowTitle}>
+              <Text
+                variant="bodyStrong"
+                numberOfLines={1}
+                style={[
+                  { flex: 1 },
+                  !product.active && { color: color.textSecondary },
+                ]}
+              >
+                {product.name}
+              </Text>
+              {!product.active ? (
+                <View style={styles.inactiveBadge}>
+                  <Text variant="caption" style={{ color: color.warningText }}>
+                    Hidden
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.rowMeta}>
+              <Text
+                mono
+                style={{
+                  fontSize: 15,
+                  fontWeight: fontWeight.bold,
+                  color: palette.terracotta600,
+                }}
+              >
+                {formatMXN(product.price_cents)}
+              </Text>
+              {variantCount > 0 ? (
+                <>
+                  <View style={styles.rowMetaDot} />
+                  <Text variant="footnote">
+                    {variantCount} variant{variantCount === 1 ? '' : 's'}
+                  </Text>
+                </>
+              ) : null}
+            </View>
           </View>
-        </View>
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={color.textTertiary}
-        />
-      </Card>
-    </Pressable>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={color.textTertiary}
+          />
+        </Card>
+      </Pressable>
+    </ReanimatedSwipeable>
   );
 }
 
@@ -567,6 +637,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: color.warningBg,
   },
+
 
   // Floating glass-tinted FAB. GlassSurface owns the shadow + specular.
   fabWrap: {

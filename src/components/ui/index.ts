@@ -10,3 +10,4 @@ export { Divider } from './Divider';
 export { EmptyState } from './EmptyState';
 export { GlassSurface } from './GlassSurface';
 export { WarmCanvas } from './WarmCanvas';
+export { SwipeAction, swipeActionsWrapStyle } from './SwipeAction';

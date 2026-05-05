@@ -21,7 +21,7 @@ export function useCreateKomanda() {
         period_id: '00000000-0000-0000-0000-000000000000',
         number: null,
         display_name: input.display_name,
-        status: 'open',
+        status: 'pending',
         opened_by_auth_user_id: session.session.userId,
         opened_at,
         closed_at: null,
