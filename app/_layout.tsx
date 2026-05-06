@@ -1,16 +1,52 @@
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
 import 'react-native-reanimated';
 import { QueryProvider } from '@/offline/QueryProvider';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useQueueDrain } from '@/offline/drain';
+import { configureNotifications } from '@/notifications';
 import { color } from '@/theme/tokens';
 
 function QueueBoot() {
   useQueueDrain();
+  return null;
+}
+
+/**
+ * Wires notification configuration + the tap-response handler. Must live
+ * at the root so it captures notifications received while the app was
+ * killed (cold-start tap) AND while it was backgrounded.
+ *
+ * Tap payload contract: `data.komanda_id` (string) → push to detail.
+ * Other notification kinds will add their own routing here later.
+ */
+function NotificationsBoot() {
+  const router = useRouter();
+  // useLastNotificationResponse fires once for the response that launched
+  // the app (cold-start) AND any subsequent taps. Replaces the older
+  // getLastNotificationResponseAsync + addNotificationResponseReceivedListener
+  // combo with a single reactive value.
+  const lastResponse = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    void configureNotifications();
+  }, []);
+
+  useEffect(() => {
+    if (!lastResponse) return;
+    const data = lastResponse.notification.request.content.data as
+      | { komanda_id?: string }
+      | undefined;
+    if (data?.komanda_id) {
+      router.push(`/(app)/komandas/${data.komanda_id}` as const);
+    }
+  }, [lastResponse, router]);
+
   return null;
 }
 
@@ -20,6 +56,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryProvider>
           <QueueBoot />
+          <NotificationsBoot />
           <OfflineBanner />
           <Stack
             screenOptions={{

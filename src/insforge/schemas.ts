@@ -98,6 +98,11 @@ export const KomandaRow = z.object({
   payment_method: PaymentMethod.nullable(),
   total_cents: z.number().int().nullable(),
   local_uuid: uuid,
+  // Audit columns added in 0013_komanda_audit_and_realtime.sql.
+  // Optional in the schema for tolerance during the deploy gap when older
+  // clients may receive payloads without them.
+  updated_at: iso.optional(),
+  updated_by_auth_user_id: uuid.nullable().optional(),
 });
 
 export const AuditPeriodStatus = z.enum(['open', 'closed']);

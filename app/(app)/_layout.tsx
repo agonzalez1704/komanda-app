@@ -10,6 +10,7 @@ import { color, fontWeight, radius, space } from '@/theme/tokens';
 import { effectiveStatus, hasAccess, type OrgBilling } from '@/billing';
 import { BillingBanner } from '@/billing/BillingBanner';
 import { BillingPaywall } from '@/billing/BillingPaywall';
+import { useKomandaCreatedNotifications } from '@/notifications/useKomandaCreatedNotifications';
 
 /**
  * True when the error message looks like an auth/permission failure rather
@@ -56,6 +57,17 @@ export default function AppLayout() {
       return failureCount < 2;
     },
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 3000),
+  });
+
+  // Realtime: when membership is loaded, subscribe to the org's komanda
+  // channel and fire local notifications for every NEW komanda created
+  // by another member. Hook is unconditional so React's hook count stays
+  // stable across the loading → loaded transition; it no-ops when args
+  // are null.
+  useKomandaCreatedNotifications({
+    orgId: membership.data?.organization?.id ?? null,
+    authUserId: membership.data?.auth_user_id ?? null,
+    role: membership.data?.role ?? null,
   });
 
   if (session.status === 'loading' || isRestoring) return <Loader />;
