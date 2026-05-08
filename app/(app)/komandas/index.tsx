@@ -7,14 +7,13 @@ import { StuckMutationsBanner } from '@/components/StuckMutationsBanner';
 import { FilterBar } from '@/features/komandas-list/components/FilterBar';
 import { KomandaListItem } from '@/features/komandas-list/components/KomandaListItem';
 import { NewKomandaFab } from '@/features/komandas-list/components/NewKomandaFab';
-import { RevenueCard } from '@/features/komandas-list/components/RevenueCard';
 import { SearchField } from '@/features/komandas-list/components/SearchField';
+import { StatsHeroCard } from '@/features/komandas-list/components/StatsHeroCard';
 import { TopBar } from '@/features/komandas-list/components/TopBar';
 import { useKomandasData } from '@/features/komandas-list/hooks/useKomandasData';
 import { useKomandasFilter } from '@/features/komandas-list/hooks/useKomandasFilter';
 import { useKomandasTotals } from '@/features/komandas-list/hooks/useKomandasTotals';
 import { useWaiterStats } from '@/features/komandas-list/hooks/useWaiterStats';
-import { WaiterStatsCard } from '@/features/komandas-list/components/WaiterStatsCard';
 import { usePullRefresh } from '@/features/komandas-list/hooks/usePullRefresh';
 import {
   emptySubtitleFor,
@@ -64,8 +63,10 @@ export default function KomandasList() {
     return <Redirect href="/(app)/settings" />;
   }
 
-  // RevenueCard exposes money totals — admin/cashier only. Waiters get a
-  // money-free WaiterStatsCard with shift-relevant counts in the same slot.
+  // Single StatsHeroCard component for both modes — admin/cashier see the
+  // money-forward 'revenue' variant, waiters see the money-free 'shift'
+  // variant. Same amber gradient + layout in both, only the headline +
+  // stats swap.
   const isReady = !isLoading && komandas.length > 0;
   const showAuditSummary = isReady && !!me && can.viewAudit(me.role);
   const showWaiterCard = isReady && !!me && !can.viewAudit(me.role) && can.workKomanda(me.role);
@@ -98,7 +99,8 @@ export default function KomandasList() {
       ) : null}
 
       {showSummary ? (
-        <RevenueCard
+        <StatsHeroCard
+          mode="revenue"
           dayRevenueCents={totals.dayRevenue}
           closedCount={totals.dayClosed}
           activeCount={totals.active}
@@ -107,7 +109,8 @@ export default function KomandasList() {
       ) : null}
 
       {showWaiterCard ? (
-        <WaiterStatsCard
+        <StatsHeroCard
+          mode="shift"
           displayName={me?.display_name ?? null}
           activeMine={waiterStats.activeMine}
           oldestOpenAgeMs={waiterStats.oldestOpenAgeMs}

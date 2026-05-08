@@ -22,7 +22,7 @@ import { ComboGroup } from './ComboGroup';
  * heading, opened→closed time strip, items, three-column meta strip
  * (Booking / Waiter / Payment), bold total and a deterministic barcode
  * footer. Adapts the warm/saffron palette rather than importing a dark
- * theme directly — the gradient reuses the same stops as `RevenueCard`
+ * theme directly — the gradient reuses the same stops as `StatsHeroCard`
  * so closed receipts feel related to the dashboard hero.
  */
 
@@ -147,7 +147,7 @@ export function KomandaTicket(props: KomandaTicketProps) {
     <View style={styles.pad}>
       <LinearGradient
         // Brand-amber gradient — Honey Glow → Amber Flame → deep amber.
-        // Mirrors RevenueCard so the closed-ticket reads as the same
+        // Mirrors StatsHeroCard so the closed-ticket reads as the same
         // brand surface as the hero revenue tile (continuity = memorable).
         colors={['#feab30', '#ff5b1f', '#7a1f00']}
         locations={[0, 0.45, 1]}
@@ -274,7 +274,7 @@ export function KomandaTicket(props: KomandaTicketProps) {
         </View>
 
         {/* 5. Booking strip (Booking / Waiter / Payment) — glass tiles
-            mirror RevenueCard's HeroStat: BlurView absoluteFill with a
+            mirror StatsHeroCard's HeroStat: BlurView absoluteFill with a
             faint white background so the tile reads as frosted glass over
             the warm gradient. */}
         <View style={styles.metaStrip}>
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     top: -130,
     borderRadius: 150,
     // Bright white-honey halo blooms in the top-right corner — matches
-    // RevenueCard so both brand surfaces share the same sunlight cue.
+    // StatsHeroCard so both brand surfaces share the same sunlight cue.
     backgroundColor: 'rgba(255,237,200,0.55)',
   },
 
