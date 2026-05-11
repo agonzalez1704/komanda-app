@@ -2,7 +2,7 @@ import { groupItemsByCombo } from '@/domain/comboGrouping';
 
 const item = (over: Partial<any> = {}) => ({
   id: 'i', combo_id: null, quantity: 1, product_name_snapshot: 'X',
-  variant_name_snapshot: null, unit_price_cents: 100, modifiers: [], note_text: null,
+  variant_name_snapshot: null, variant_2_name_snapshot: null, unit_price_cents: 100, modifiers: [], note_text: null,
   ...over,
 });
 

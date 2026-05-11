@@ -5,6 +5,7 @@ import { formatMXN } from '@/domain/money';
 import type { KomandaItemWithMods } from '../hooks/useKomandaDetail';
 import type { KomandaComboRowT } from '@/insforge/schemas';
 import { groupItemsByCombo } from '@/domain/comboGrouping';
+import { formatVariantLabel } from '@/domain/variantLabel';
 import { ComboGroup } from './ComboGroup';
 import { color, fontWeight, hitSlop, palette, radius, space } from '@/theme/tokens';
 
@@ -31,6 +32,7 @@ export function ItemsList({
       quantity: it.quantity,
       product_name_snapshot: it.product_name_snapshot,
       variant_name_snapshot: it.variant_name_snapshot,
+      variant_2_name_snapshot: it.variant_2_name_snapshot,
       unit_price_cents: it.unit_price_cents,
       modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
       note_text: it.note_text,
@@ -127,8 +129,10 @@ function ItemRow({
         <Text variant="bodyStrong" numberOfLines={2}>
           {item.product_name_snapshot}
         </Text>
-        {item.variant_name_snapshot ? (
-          <Text variant="footnote">{item.variant_name_snapshot}</Text>
+        {formatVariantLabel(item.variant_name_snapshot, item.variant_2_name_snapshot) ? (
+          <Text variant="footnote">
+            {formatVariantLabel(item.variant_name_snapshot, item.variant_2_name_snapshot)}
+          </Text>
         ) : null}
         {item.modifiers.length > 0 ? (
           <Text variant="caption" numberOfLines={2}>

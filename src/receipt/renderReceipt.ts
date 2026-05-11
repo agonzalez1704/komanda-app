@@ -1,10 +1,12 @@
 import { formatMXN } from '@/domain/money';
+import { formatVariantLabel } from '@/domain/variantLabel';
 import type { PaymentMethodT } from '@/insforge/schemas';
 
 export interface ReceiptItem {
   quantity: number;
   product_name_snapshot: string;
   variant_name_snapshot: string | null;
+  variant_2_name_snapshot: string | null;
   unit_price_cents: number;
   modifiers: { name_snapshot: string }[];
   note_text: string | null;
@@ -103,7 +105,8 @@ export function renderReceipt(d: ReceiptData): string {
   const heading = d.customerLabel && d.customerLabel.length > 0 ? d.customerLabel : d.identifier;
 
   const renderItemRow = (it: ReceiptItem, opts: { showPrice: boolean }) => {
-    const name = `${esc(it.product_name_snapshot)}${it.variant_name_snapshot ? ` · ${esc(it.variant_name_snapshot)}` : ''}`;
+    const variantLabel = formatVariantLabel(it.variant_name_snapshot, it.variant_2_name_snapshot);
+    const name = `${esc(it.product_name_snapshot)}${variantLabel ? ` · ${esc(variantLabel)}` : ''}`;
     const mods = it.modifiers.length > 0
       ? `<div class="sub">${it.modifiers.map((m) => esc(m.name_snapshot)).join(' · ')}</div>`
       : '';

@@ -103,6 +103,7 @@ export default function KomandaDetail() {
             quantity: it.quantity,
             product_name_snapshot: it.product_name_snapshot,
             variant_name_snapshot: it.variant_name_snapshot,
+            variant_2_name_snapshot: it.variant_2_name_snapshot,
             unit_price_cents: it.unit_price_cents,
             modifiers: it.modifiers.map((m) => ({ name_snapshot: m.name_snapshot })),
             note_text: it.note_text,

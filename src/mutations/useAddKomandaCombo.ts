@@ -66,6 +66,7 @@ export function useAddKomandaCombo() {
           quantity: c.quantity,
           product_name_snapshot: c.product_name_snapshot,
           variant_name_snapshot: c.variant_name_snapshot,
+          variant_2_name_snapshot: null,
           unit_price_cents: 0,
           modifiers: c.modifiers,
           note_text: c.note_text,

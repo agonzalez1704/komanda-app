@@ -2,6 +2,7 @@ import { Button, Text } from '@/components/ui';
 import type { RoleT } from '@/insforge/schemas';
 import { useInviteMember } from '@/mutations/useInviteMember';
 import { color, radius, space } from '@/theme/tokens';
+import { buildInviteShareMessage } from '@/domain/inviteLink';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
@@ -46,11 +47,10 @@ export function InviteSheet({ orgId, onClose }: Props) {
 
   async function handleShare() {
     if (!code) return;
-    // Send only the code so Copy/Messages/etc. paste exactly the code with no
-    // surrounding text. The accept-invite screen takes a raw code; any extra
-    // chars would force the recipient to clean it up before pasting.
     try {
-      await Share.share({ message: code });
+      await Share.share({
+        message: buildInviteShareMessage({ code }),
+      });
     } catch {
       // user-cancelled share — ignore
     }

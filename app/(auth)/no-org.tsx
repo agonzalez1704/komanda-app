@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { insforge, clearToken } from '@/insforge/client';
 import { createOrganizationAndMember } from '@/insforge/queries/organizations';
-import { redeemInvitation } from '@/insforge/queries/invitations';
 import { resetCreateKomandaContext } from '@/offline/handlers/createKomanda';
-import { Button, Chip, Screen, Text, TextField } from '@/components/ui';
+import { Button, Screen, Text, TextField } from '@/components/ui';
 import { color, palette, radius, shadow, space } from '@/theme/tokens';
 import { useQueryClient } from '@tanstack/react-query';
 
-type Mode = 'create' | 'invite';
-
+/**
+ * Shown when a signed-in user has no membership. They can create a new
+ * organization here. Invitees take the deep-link path (handled in
+ * `app/invite/accept.tsx`); this screen surfaces a single link to that
+ * funnel for the rare case where a user signed in before opening the
+ * invite link.
+ */
 export default function NoOrg() {
   const router = useRouter();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<Mode>('create');
   const [orgName, setOrgName] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [token, setToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,23 +36,17 @@ export default function NoOrg() {
     setSubmitting(true);
     setError(null);
     try {
-      if (mode === 'create') {
-        await createOrganizationAndMember(orgName, displayName);
-      } else {
-        await redeemInvitation(token);
-      }
+      await createOrganizationAndMember(orgName, displayName);
       await qc.invalidateQueries({ queryKey: ['membership'] });
       router.replace('/(app)/komandas');
     } catch (e: any) {
-      setError(e?.message ?? 'Failed');
+      setError(e?.message ?? 'No se pudo crear la organización');
     } finally {
       setSubmitting(false);
     }
   }
 
-  const createDisabled = submitting || !orgName || !displayName;
-  const inviteDisabled = submitting || !token;
-  const disabled = mode === 'create' ? createDisabled : inviteDisabled;
+  const disabled = submitting || !orgName || !displayName;
 
   return (
     <Screen avoidKeyboard scrollable contentContainerStyle={{ paddingVertical: space.xxl, gap: space.lg }}>
@@ -59,71 +55,50 @@ export default function NoOrg() {
           <Ionicons name="people-outline" size={36} color={palette.terracotta500} />
         </View>
         <Text variant="h1" align="center">
-          No organization yet
+          Aún no tienes organización
         </Text>
         <Text variant="bodySm" align="center" style={styles.body}>
-          Create one now, or accept an invite to join an existing organization.
+          Crea una nueva, o abre el enlace de invitación que te enviaron.
         </Text>
       </View>
 
       <View style={styles.card}>
-        <View style={styles.segmented}>
-          <Chip
-            block
-            label="Create new"
-            tone="neutral"
-            selected={mode === 'create'}
-            onPress={() => setMode('create')}
-          />
-          <Chip
-            block
-            label="Accept invite"
-            tone="neutral"
-            selected={mode === 'invite'}
-            onPress={() => setMode('invite')}
-          />
-        </View>
-
+        <Text variant="h3">Crear organización</Text>
         <View style={{ gap: space.md }}>
-          {mode === 'create' ? (
-            <>
-              <TextField
-                label="Organization name"
-                placeholder="e.g. Tacos El Güero"
-                value={orgName}
-                onChangeText={setOrgName}
-              />
-              <TextField
-                label="Your name"
-                placeholder="First and last name"
-                value={displayName}
-                onChangeText={setDisplayName}
-                autoComplete="name"
-                textContentType="name"
-                error={error}
-              />
-            </>
-          ) : (
-            <TextField
-              label="Invite token"
-              placeholder="Paste or enter token"
-              value={token}
-              onChangeText={setToken}
-              autoCapitalize="none"
-              error={error}
-            />
-          )}
+          <TextField
+            label="Nombre de la organización"
+            placeholder="Ej. Tacos El Güero"
+            value={orgName}
+            onChangeText={setOrgName}
+          />
+          <TextField
+            label="Tu nombre"
+            placeholder="Nombre y apellido"
+            value={displayName}
+            onChangeText={setDisplayName}
+            autoComplete="name"
+            textContentType="name"
+            error={error}
+          />
         </View>
 
         <Button
-          label={mode === 'create' ? 'Create organization' : 'Accept invite'}
+          label="Crear organización"
           onPress={onSubmit}
           disabled={disabled}
           loading={submitting}
         />
+
+        <Link href="/invite/accept" asChild>
+          <Pressable style={styles.link} accessibilityRole="link">
+            <Text style={{ color: color.primary }}>
+              ¿Tienes un código de invitación?
+            </Text>
+          </Pressable>
+        </Link>
       </View>
 
-      <Button label="Sign out" variant="ghost" onPress={signOut} />
+      <Button label="Cerrar sesión" variant="ghost" onPress={signOut} />
     </Screen>
   );
 }
@@ -157,8 +132,8 @@ const styles = StyleSheet.create({
     borderColor: color.border,
     ...shadow.md,
   },
-  segmented: {
-    flexDirection: 'row',
-    gap: space.sm,
+  link: {
+    alignSelf: 'center',
+    marginTop: space.xs,
   },
 });

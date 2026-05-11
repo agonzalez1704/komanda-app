@@ -12,6 +12,7 @@ import {
 } from '@/theme/tokens';
 import type { KomandaComboRowT, PaymentMethodT } from '@/insforge/schemas';
 import { groupItemsByCombo } from '@/domain/comboGrouping';
+import { formatVariantLabel } from '@/domain/variantLabel';
 import { ComboGroup } from './ComboGroup';
 
 /**
@@ -34,6 +35,7 @@ export interface KomandaTicketItem {
   quantity: number;
   product_name_snapshot: string;
   variant_name_snapshot: string | null;
+  variant_2_name_snapshot: string | null;
   unit_price_cents: number;
   modifiers?: { name_snapshot: string }[];
   note_text?: string | null;
@@ -131,6 +133,7 @@ export function KomandaTicket(props: KomandaTicketProps) {
       quantity: it.quantity,
       product_name_snapshot: it.product_name_snapshot,
       variant_name_snapshot: it.variant_name_snapshot,
+      variant_2_name_snapshot: it.variant_2_name_snapshot,
       unit_price_cents: it.unit_price_cents,
       modifiers: it.modifiers ?? [],
       note_text: it.note_text ?? null,
@@ -251,7 +254,9 @@ export function KomandaTicket(props: KomandaTicketProps) {
                         {it.quantity}×{' '}
                       </Text>
                       {it.product_name_snapshot}
-                      {it.variant_name_snapshot ? ` · ${it.variant_name_snapshot}` : ''}
+                      {formatVariantLabel(it.variant_name_snapshot, it.variant_2_name_snapshot)
+                        ? ` · ${formatVariantLabel(it.variant_name_snapshot, it.variant_2_name_snapshot)}`
+                        : ''}
                     </Text>
                     {mods.length > 0 ? (
                       <Text style={styles.itemSub} numberOfLines={2}>

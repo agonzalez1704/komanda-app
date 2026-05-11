@@ -81,7 +81,7 @@ export const ModifierRow = z.object({
   active: z.boolean(),
 });
 
-export const KomandaStatus = z.enum(['open', 'pending', 'served', 'closed']);
+export const KomandaStatus = z.enum(['open', 'pending', 'served', 'closed', 'cancelled']);
 export const PaymentMethod = z.enum(['cash', 'card', 'transfer']);
 
 export const KomandaRow = z.object({
@@ -103,6 +103,9 @@ export const KomandaRow = z.object({
   // clients may receive payloads without them.
   updated_at: iso.optional(),
   updated_by_auth_user_id: uuid.nullable().optional(),
+  cancelled_at: iso.nullable().optional(),
+  cancelled_by_auth_user_id: uuid.nullable().optional(),
+  cancellation_note: z.string().nullable().optional(),
 });
 
 export const AuditPeriodStatus = z.enum(['open', 'closed']);

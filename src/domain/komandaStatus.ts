@@ -24,7 +24,15 @@ const ALLOWED: Record<KomandaStatusT, ManualStatus[]> = {
   pending: ['served'],
   served: ['pending', 'closed'],
   closed: [],
+  cancelled: [],
 };
+
+/** Cancellation is a terminal one-way transition, separate from the
+ *  manual status segment. Cancelling a closed komanda is forbidden — once
+ *  paid the audit trail is sealed; voiding requires a refund flow. */
+export function canCancelKomanda(from: KomandaStatusT): boolean {
+  return from !== 'closed' && from !== 'cancelled';
+}
 
 export function canTransitionStatus(
   from: KomandaStatusT,
@@ -42,8 +50,9 @@ export function nextManualStatuses(from: KomandaStatusT): ManualStatus[] {
  * Effective status for display — collapses the deprecated 'open' bucket
  * into 'pending' so the UI only ever surfaces 3 user-meaningful states.
  */
-export function effectiveStatus(s: KomandaStatusT): ManualStatus {
-  return s === 'open' ? 'pending' : s;
+export function effectiveStatus(s: KomandaStatusT): ManualStatus | 'cancelled' {
+  if (s === 'open') return 'pending';
+  return s;
 }
 
 /**

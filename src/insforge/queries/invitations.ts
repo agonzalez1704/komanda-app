@@ -62,6 +62,7 @@ const PreviewSchema = z.object({
   email: z.string().email(),
   status: z.enum(['pending', 'accepted', 'revoked', 'expired']),
   expires_at: z.string(),
+  inviter_email: z.string().email().nullable().optional(),
 });
 export type InvitationPreview = z.infer<typeof PreviewSchema>;
 

@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { insforge, persistSession } from '@/insforge/client';
-import { redeemInvitation } from '@/insforge/queries/invitations';
 import { createOrganizationAndMember } from '@/insforge/queries/organizations';
-import { Button, Chip, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { color, radius, shadow, space } from '@/theme/tokens';
 
-type Mode = 'create' | 'invite';
+/**
+ * Sign-up creates a new organization. Invitees come in through
+ * `app/invite/accept.tsx` (deep link) — there is no invite-mode toggle
+ * on this screen. If a deep link delivers a `?code=` param it is
+ * forwarded to /invite/accept.
+ */
+
 type Step = 'form' | 'otp';
 
 export default function SignUp() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ token?: string; email?: string }>();
-  const [mode, setMode] = useState<Mode>(params.token ? 'invite' : 'create');
+  const params = useLocalSearchParams<{ email?: string; code?: string }>();
   const [step, setStep] = useState<Step>('form');
-  const [token, setToken] = useState(params.token ?? '');
   const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -27,26 +30,27 @@ export default function SignUp() {
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Forward late-arriving deep links to the canonical invite funnel so the
+  // user never sees a token field on this screen.
   useEffect(() => {
+    if (params.code) {
+      router.replace(
+        `/invite/accept?code=${encodeURIComponent(String(params.code))}`,
+      );
+      return;
+    }
     const sub = Linking.addEventListener('url', (event) => {
       const parsed = Linking.parse(event.url);
-      const t = (parsed.queryParams as any)?.token;
-      if (typeof t === 'string') {
-        setToken(t);
-        setMode('invite');
+      const code = (parsed.queryParams as any)?.code;
+      if (typeof code === 'string') {
+        router.replace(`/invite/accept?code=${encodeURIComponent(code)}`);
       }
-      const e = (parsed.queryParams as any)?.email;
-      if (typeof e === 'string') setEmail(e);
     });
     return () => sub.remove();
-  }, []);
+  }, [params.code, router]);
 
   async function finishPostAuth() {
-    if (mode === 'invite') {
-      await redeemInvitation(token);
-    } else {
-      await createOrganizationAndMember(orgName, displayName);
-    }
+    await createOrganizationAndMember(orgName, displayName);
     router.replace('/(app)/komandas');
   }
 
@@ -76,19 +80,20 @@ export default function SignUp() {
           if (sMsg.includes('verif')) {
             await insforge.auth.resendVerificationEmail({ email });
             setStep('otp');
-            setInfo(`Account exists but isn't verified. We sent a code to ${email}`);
+            setInfo(`La cuenta existe pero no está verificada. Te enviamos un código a ${email}`);
             return;
           }
-          throw new Error('Account already exists. Sign in instead, or use a different email.');
+          throw new Error('La cuenta ya existe. Inicia sesión, o usa otro correo.');
         }
         if (sess?.accessToken) {
           const u = (sess as any)?.user;
-          const userId: string | undefined = u?.id;
-          const userEmail: string | undefined = u?.email ?? email;
           await persistSession({
             accessToken: sess.accessToken,
             refreshToken: sess.refreshToken ?? null,
-            user: userId && userEmail ? { id: userId, email: userEmail } : null,
+            user:
+              u?.id && (u?.email ?? email)
+                ? { id: u.id, email: u.email ?? email }
+                : null,
           });
         }
         await finishPostAuth();
@@ -97,18 +102,19 @@ export default function SignUp() {
 
       if (data?.requireEmailVerification) {
         setStep('otp');
-        setInfo(`We sent a 6-digit code to ${email}`);
+        setInfo(`Te enviamos un código de 6 dígitos a ${email}`);
         return;
       }
 
       if (data?.accessToken) {
         const u = (data as any)?.user;
-        const userId: string | undefined = u?.id;
-        const userEmail: string | undefined = u?.email ?? email;
         await persistSession({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken ?? null,
-          user: userId && userEmail ? { id: userId, email: userEmail } : null,
+          user:
+            u?.id && (u?.email ?? email)
+              ? { id: u.id, email: u.email ?? email }
+              : null,
         });
       } else {
         const { data: sess, error: siErr } = await insforge.auth.signInWithPassword({
@@ -118,19 +124,20 @@ export default function SignUp() {
         if (siErr) throw siErr;
         if (sess?.accessToken) {
           const u = (sess as any)?.user;
-          const userId: string | undefined = u?.id;
-          const userEmail: string | undefined = u?.email ?? email;
           await persistSession({
             accessToken: sess.accessToken,
             refreshToken: sess.refreshToken ?? null,
-            user: userId && userEmail ? { id: userId, email: userEmail } : null,
+            user:
+              u?.id && (u?.email ?? email)
+                ? { id: u.id, email: u.email ?? email }
+                : null,
           });
         }
       }
 
       await finishPostAuth();
     } catch (e: any) {
-      setError(e?.message ?? 'Sign up failed');
+      setError(e?.message ?? 'No se pudo crear la cuenta');
     } finally {
       setSubmitting(false);
     }
@@ -142,18 +149,19 @@ export default function SignUp() {
     try {
       const { data, error: verifyErr } = await insforge.auth.verifyEmail({ email, otp });
       if (verifyErr) throw verifyErr;
-      if (!data?.accessToken) throw new Error('Verification did not return a session');
+      if (!data?.accessToken) throw new Error('La verificación no devolvió una sesión');
       const u = (data as any)?.user;
-      const userId: string | undefined = u?.id;
-      const userEmail: string | undefined = u?.email ?? email;
       await persistSession({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken ?? null,
-        user: userId && userEmail ? { id: userId, email: userEmail } : null,
+        user:
+          u?.id && (u?.email ?? email)
+            ? { id: u.id, email: u.email ?? email }
+            : null,
       });
       await finishPostAuth();
     } catch (e: any) {
-      setError(e?.message ?? 'Verification failed');
+      setError(e?.message ?? 'La verificación falló');
     } finally {
       setSubmitting(false);
     }
@@ -166,17 +174,15 @@ export default function SignUp() {
     try {
       const { error: resendErr } = await insforge.auth.resendVerificationEmail({ email });
       if (resendErr) throw resendErr;
-      setInfo(`New code sent to ${email}`);
+      setInfo(`Nuevo código enviado a ${email}`);
     } catch (e: any) {
-      setError(e?.message ?? 'Could not resend code');
+      setError(e?.message ?? 'No se pudo reenviar el código');
     } finally {
       setResending(false);
     }
   }
 
-  const createDisabled = submitting || !email || !password || !displayName || !orgName;
-  const inviteDisabled = submitting || !email || !password || !displayName || !token;
-  const formDisabled = mode === 'create' ? createDisabled : inviteDisabled;
+  const formDisabled = submitting || !email || !password || !displayName || !orgName;
   const otpDisabled = submitting || otp.length !== 6;
 
   return (
@@ -187,56 +193,26 @@ export default function SignUp() {
     >
       <ScreenHeader
         showBack
-        title={
-          step === 'otp'
-            ? 'Verify email'
-            : mode === 'create'
-            ? 'Create account'
-            : 'Accept invite'
-        }
+        title={step === 'otp' ? 'Verifica tu correo' : 'Crear cuenta'}
       />
 
       <View style={styles.card}>
         {step === 'form' ? (
           <>
-            <View style={styles.segmented}>
-              <Chip
-                block
-                label="New organization"
-                tone="neutral"
-                selected={mode === 'create'}
-                onPress={() => setMode('create')}
-              />
-              <Chip
-                block
-                label="Accept invite"
-                tone="neutral"
-                selected={mode === 'invite'}
-                onPress={() => setMode('invite')}
-              />
-            </View>
+            <Text variant="bodySm" style={{ marginBottom: space.md }}>
+              Crea una cuenta y abre tu nueva organización en Komanda.
+            </Text>
 
             <View style={{ gap: space.md }}>
-              {mode === 'invite' ? (
-                <TextField
-                  label="Invite token"
-                  placeholder="Paste or enter token"
-                  value={token}
-                  onChangeText={setToken}
-                  autoCapitalize="none"
-                />
-              ) : (
-                <TextField
-                  label="Organization name"
-                  placeholder="e.g. Tacos El Güero"
-                  value={orgName}
-                  onChangeText={setOrgName}
-                />
-              )}
-
               <TextField
-                label="Email"
-                placeholder="you@example.com"
+                label="Nombre de la organización"
+                placeholder="Ej. Tacos El Güero"
+                value={orgName}
+                onChangeText={setOrgName}
+              />
+              <TextField
+                label="Correo"
+                placeholder="tu@correo.com"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -245,16 +221,16 @@ export default function SignUp() {
                 textContentType="emailAddress"
               />
               <TextField
-                label="Your name"
-                placeholder="First and last name"
+                label="Tu nombre"
+                placeholder="Nombre y apellido"
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoComplete="name"
                 textContentType="name"
               />
               <TextField
-                label="Password"
-                placeholder="At least 8 characters"
+                label="Contraseña"
+                placeholder="Mínimo 8 caracteres"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -265,19 +241,27 @@ export default function SignUp() {
             </View>
 
             <Button
-              label={mode === 'create' ? 'Create account & organization' : 'Accept invite'}
+              label="Crear cuenta y organización"
               onPress={onSubmitForm}
               disabled={formDisabled}
               loading={submitting}
               style={{ marginTop: space.lg }}
             />
+
+            <Link href="/invite/accept" asChild>
+              <Pressable style={styles.link} accessibilityRole="link">
+                <Text style={{ color: color.primary }}>
+                  ¿Tienes un código de invitación?
+                </Text>
+              </Pressable>
+            </Link>
           </>
         ) : (
           <>
             {info ? <Text style={styles.info}>{info}</Text> : null}
             <View style={{ gap: space.md }}>
               <TextField
-                label="6-digit code"
+                label="Código de 6 dígitos"
                 placeholder="123456"
                 value={otp}
                 onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
@@ -290,20 +274,20 @@ export default function SignUp() {
             </View>
 
             <Button
-              label="Verify & continue"
+              label="Verificar y continuar"
               onPress={onVerifyOtp}
               disabled={otpDisabled}
               loading={submitting}
               style={{ marginTop: space.lg }}
             />
             <Button
-              label={resending ? 'Sending…' : 'Resend code'}
+              label={resending ? 'Enviando…' : 'Reenviar código'}
               onPress={onResend}
               disabled={resending || submitting}
               variant="ghost"
             />
             <Button
-              label="Use a different email"
+              label="Usar otro correo"
               onPress={() => {
                 setStep('form');
                 setOtp('');
@@ -330,12 +314,12 @@ const styles = StyleSheet.create({
     borderColor: color.border,
     ...shadow.md,
   },
-  segmented: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
   info: {
     color: color.textMuted,
     fontSize: 14,
+  },
+  link: {
+    alignSelf: 'center',
+    marginTop: space.md,
   },
 });

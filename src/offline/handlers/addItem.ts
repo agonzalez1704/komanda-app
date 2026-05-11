@@ -9,10 +9,12 @@ export interface AddItemPayload {
   /** null for ad-hoc/custom items that aren't in the menu. */
   product_id: string | null;
   variant_id: string | null;
+  variant_id_2: string | null;
   quantity: number;
   unit_price_cents: number;
   product_name_snapshot: string;
   variant_name_snapshot: string | null;
+  variant_2_name_snapshot: string | null;
   note_text: string | null;
   modifiers: Array<{ modifier_id: string | null; name_snapshot: string }>;
 }
@@ -36,10 +38,12 @@ export function addItemHandler(deps: { localStore: LocalStore; queueStore: Queue
         komanda_id: komandaId,
         product_id: p.product_id,
         variant_id: p.variant_id,
+        variant_id_2: p.variant_id_2,
         quantity: p.quantity,
         unit_price_cents: p.unit_price_cents,
         product_name_snapshot: p.product_name_snapshot,
         variant_name_snapshot: p.variant_name_snapshot,
+        variant_2_name_snapshot: p.variant_2_name_snapshot,
         note_text: p.note_text,
       })
       .select('*')

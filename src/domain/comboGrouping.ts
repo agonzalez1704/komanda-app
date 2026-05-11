@@ -4,6 +4,7 @@ export interface ItemInput {
   quantity: number;
   product_name_snapshot: string;
   variant_name_snapshot: string | null;
+  variant_2_name_snapshot: string | null;
   unit_price_cents: number;
   modifiers?: { name_snapshot: string }[];
   note_text?: string | null;

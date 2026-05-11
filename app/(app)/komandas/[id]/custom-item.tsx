@@ -94,10 +94,12 @@ export default function CustomItem() {
       komanda_id: komandaId,
       product_id: null,
       variant_id: null,
+      variant_id_2: null,
       quantity,
       unit_price_cents: priceCents,
       product_name_snapshot: name.trim(),
       variant_name_snapshot: null,
+      variant_2_name_snapshot: null,
       note_text: note.trim() || null,
       modifiers: chosenMods.map((m) => ({
         modifier_id: m.id,

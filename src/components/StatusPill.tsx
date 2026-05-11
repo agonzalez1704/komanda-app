@@ -50,6 +50,13 @@ const STATUS_STYLE: Record<
     icon: 'lock-closed',
     label: 'Cobrada',
   },
+  cancelled: {
+    bg: palette.ink500,
+    fg: palette.white,
+    shadow: palette.ink700,
+    icon: 'close-circle',
+    label: 'Cancelada',
+  },
 };
 
 export function StatusPill({

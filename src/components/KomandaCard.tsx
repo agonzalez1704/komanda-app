@@ -20,12 +20,14 @@ export function KomandaCard({
   onPress: () => void;
   syncedServerSide: boolean;
 }) {
+  const cancelled = k.status === 'cancelled';
   return (
     <Pressable
       onPress={onPress}
       android_ripple={{ color: 'rgba(28,20,16,0.06)' }}
       style={({ pressed }) => [
         styles.card,
+        cancelled && styles.cardCancelled,
         pressed && { opacity: 0.92, transform: [{ scale: 0.995 }] },
       ]}
     >
@@ -90,14 +92,20 @@ export function KomandaCard({
           style={{
             fontSize: 20,
             fontWeight: fontWeight.bold,
-            color: color.textPrimary,
+            color: cancelled ? color.textTertiary : color.textPrimary,
             letterSpacing: -0.2,
             fontVariant: ['tabular-nums'],
+            textDecorationLine: cancelled ? 'line-through' : 'none',
           }}
         >
           {formatMXN(runningTotalCents)}
         </Text>
       </View>
+      {cancelled && k.cancellation_note ? (
+        <Text variant="caption" numberOfLines={2} style={styles.cancelNote}>
+          “{k.cancellation_note}”
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -129,6 +137,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
     flex: 1,
+  },
+  cardCancelled: {
+    opacity: 0.6,
+  },
+  cancelNote: {
+    fontStyle: 'italic',
+    color: color.textTertiary,
   },
   pendingBadge: {
     flexDirection: 'row',

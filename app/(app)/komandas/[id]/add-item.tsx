@@ -143,10 +143,12 @@ export default function AddItem() {
       komanda_id: komandaId,
       product_id: product.id,
       variant_id: variant?.id ?? null,
+      variant_id_2: null,
       quantity,
       unit_price_cents: product.price_cents,
       product_name_snapshot: product.name,
       variant_name_snapshot: variant?.name ?? null,
+      variant_2_name_snapshot: null,
       note_text: null,
       modifiers: [],
     });
@@ -159,6 +161,31 @@ export default function AddItem() {
   async function quickAdd(product: ProductRowT, variant: VariantRowT | null) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     await quickAddQty(product, variant, 1);
+  }
+
+  async function quickAddSplit(
+    product: ProductRowT,
+    v1: VariantRowT,
+    v2: VariantRowT,
+    quantity: number,
+  ) {
+    if (!komandaId || quantity <= 0) return;
+    await addItem.mutateAsync({
+      komanda_id: komandaId,
+      product_id: product.id,
+      variant_id: v1.id,
+      variant_id_2: v2.id,
+      quantity,
+      unit_price_cents: product.price_cents,
+      product_name_snapshot: product.name,
+      variant_name_snapshot: v1.name,
+      variant_2_name_snapshot: v2.name,
+      note_text: null,
+      modifiers: [],
+    });
+    announce(
+      `Added ${quantity} ${product.name}, mitad ${v1.name} mitad ${v2.name}.`,
+    );
   }
 
   function handleProductTap(product: ProductRowT) {
@@ -501,6 +528,12 @@ export default function AddItem() {
             await quickAddQty(p, sel.variant, sel.quantity);
           }
         }}
+        onConfirmSplit={async ({ v1, v2, quantity }) => {
+          const p = variantSheet!;
+          setVariantSheet(null);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          await quickAddSplit(p, v1, v2, quantity);
+        }}
         onCustomize={(v) => {
           const p = variantSheet!;
           setVariantSheet(null);
@@ -522,10 +555,12 @@ export default function AddItem() {
             komanda_id: komandaId,
             product_id: customizeFor.product.id,
             variant_id: customizeFor.variant?.id ?? null,
+            variant_id_2: null,
             quantity,
             unit_price_cents: customizeFor.product.price_cents,
             product_name_snapshot: customizeFor.product.name,
             variant_name_snapshot: customizeFor.variant?.name ?? null,
+            variant_2_name_snapshot: null,
             note_text: note.trim() || null,
             modifiers: chosenMods.map((m) => ({ modifier_id: m.id, name_snapshot: m.name })),
           });
@@ -777,6 +812,7 @@ function VariantSheet({
   reduceMotion,
   onClose,
   onConfirm,
+  onConfirmSplit,
   onCustomize,
 }: {
   product: ProductRowT | null;
@@ -784,16 +820,35 @@ function VariantSheet({
   reduceMotion: boolean;
   onClose: () => void;
   onConfirm: (selections: { variant: VariantRowT; quantity: number }[]) => void;
+  onConfirmSplit: (result: {
+    v1: VariantRowT;
+    v2: VariantRowT;
+    quantity: number;
+  }) => void;
   onCustomize: (v: VariantRowT) => void;
 }) {
   const visible = !!product;
   const [qtys, setQtys] = useState<Record<string, number>>({});
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitV1, setSplitV1] = useState<string | null>(null);
+  const [splitV2, setSplitV2] = useState<string | null>(null);
+  const [splitQty, setSplitQty] = useState(1);
 
   // Reset when the sheet is reopened for a different product
-  useResetOnKey(product?.id ?? '', () => setQtys({}));
+  useResetOnKey(product?.id ?? '', () => {
+    setQtys({});
+    setSplitMode(false);
+    setSplitV1(null);
+    setSplitV2(null);
+    setSplitQty(1);
+  });
 
   const totalCount = Object.values(qtys).reduce((a, b) => a + b, 0);
   const totalCents = (product?.price_cents ?? 0) * totalCount;
+  const splitCanAdd =
+    splitV1 !== null && splitV2 !== null && splitV1 !== splitV2 && splitQty > 0;
+  const splitTotalCents = (product?.price_cents ?? 0) * splitQty;
+  const canSplit = variants.length >= 2;
 
   function bump(id: string, delta: number) {
     Haptics.selectionAsync().catch(() => {});
@@ -804,6 +859,17 @@ function VariantSheet({
       else next[id] = v;
       return next;
     });
+  }
+
+  function pickSplitSlot(slot: 1 | 2, id: string) {
+    Haptics.selectionAsync().catch(() => {});
+    if (slot === 1) {
+      setSplitV1(id);
+      if (splitV2 === id) setSplitV2(null);
+    } else {
+      setSplitV2(id);
+      if (splitV1 === id) setSplitV1(null);
+    }
   }
 
   return (
@@ -829,7 +895,11 @@ function VariantSheet({
               <Text variant="h3" numberOfLines={1}>
                 {product?.name}
               </Text>
-              <Text variant="footnote">Pick variants and quantities</Text>
+              <Text variant="footnote">
+                {splitMode
+                  ? 'Pick two variants for one taco'
+                  : 'Pick variants and quantities'}
+              </Text>
             </View>
             <Text
               mono
@@ -843,6 +913,69 @@ function VariantSheet({
             </Text>
           </View>
 
+          {canSplit ? (
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setSplitMode((m) => !m);
+              }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: splitMode }}
+              accessibilityLabel="Combine two variants"
+              style={({ pressed }) => [
+                styles.splitToggle,
+                splitMode && styles.splitToggleActive,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Ionicons
+                name={splitMode ? 'checkbox' : 'square-outline'}
+                size={18}
+                color={splitMode ? color.primary : color.textSecondary}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: fontWeight.semibold,
+                  color: splitMode ? color.primary : color.textPrimary,
+                  flex: 1,
+                }}
+              >
+                Mitad y mitad — combine two variants
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {splitMode ? (
+            <ScrollView
+              style={{ maxHeight: 360 }}
+              contentContainerStyle={{ gap: space.md, paddingBottom: space.xs }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <SplitVariantPicker
+                label="First half"
+                variants={variants}
+                selectedId={splitV1}
+                disabledId={splitV2}
+                onPick={(id) => pickSplitSlot(1, id)}
+              />
+              <SplitVariantPicker
+                label="Second half"
+                variants={variants}
+                selectedId={splitV2}
+                disabledId={splitV1}
+                onPick={(id) => pickSplitSlot(2, id)}
+              />
+              <View style={styles.qtyRow}>
+                <Text variant="label">Quantity</Text>
+                <CompactStepper
+                  value={splitQty}
+                  onDecrement={() => setSplitQty((q) => Math.max(1, q - 1))}
+                  onIncrement={() => setSplitQty((q) => Math.min(99, q + 1))}
+                />
+              </View>
+            </ScrollView>
+          ) : (
           <ScrollView
             style={{ maxHeight: 360 }}
             contentContainerStyle={{ gap: space.sm, paddingBottom: space.xs }}
@@ -916,6 +1049,7 @@ function VariantSheet({
               );
             })}
           </ScrollView>
+          )}
 
           <View style={styles.variantFooter}>
             <Button
@@ -925,26 +1059,49 @@ function VariantSheet({
               onPress={onClose}
               style={{ flex: 1 }}
             />
-            <Button
-              label={
-                totalCount > 0
-                  ? `Add ${totalCount} · ${formatMXN(totalCents)}`
-                  : 'Pick at least one'
-              }
-              disabled={totalCount === 0}
-              onPress={() => {
-                const selections = variants
-                  .filter((v) => (qtys[v.id] ?? 0) > 0)
-                  .map((v) => ({ variant: v, quantity: qtys[v.id] ?? 0 }));
-                onConfirm(selections);
-              }}
-              leadingIcon={
-                totalCount > 0 ? (
-                  <Ionicons name="checkmark" size={18} color={color.primaryOn} />
-                ) : undefined
-              }
-              style={{ flex: 2 }}
-            />
+            {splitMode ? (
+              <Button
+                label={
+                  splitCanAdd
+                    ? `Add ${splitQty} · ${formatMXN(splitTotalCents)}`
+                    : 'Pick two variants'
+                }
+                disabled={!splitCanAdd}
+                onPress={() => {
+                  const v1 = variants.find((v) => v.id === splitV1);
+                  const v2 = variants.find((v) => v.id === splitV2);
+                  if (!v1 || !v2) return;
+                  onConfirmSplit({ v1, v2, quantity: splitQty });
+                }}
+                leadingIcon={
+                  splitCanAdd ? (
+                    <Ionicons name="checkmark" size={18} color={color.primaryOn} />
+                  ) : undefined
+                }
+                style={{ flex: 2 }}
+              />
+            ) : (
+              <Button
+                label={
+                  totalCount > 0
+                    ? `Add ${totalCount} · ${formatMXN(totalCents)}`
+                    : 'Pick at least one'
+                }
+                disabled={totalCount === 0}
+                onPress={() => {
+                  const selections = variants
+                    .filter((v) => (qtys[v.id] ?? 0) > 0)
+                    .map((v) => ({ variant: v, quantity: qtys[v.id] ?? 0 }));
+                  onConfirm(selections);
+                }}
+                leadingIcon={
+                  totalCount > 0 ? (
+                    <Ionicons name="checkmark" size={18} color={color.primaryOn} />
+                  ) : undefined
+                }
+                style={{ flex: 2 }}
+              />
+            )}
           </View>
         </View>
       </View>
@@ -1007,6 +1164,61 @@ function CompactStepper({
       >
         <Ionicons name="add" size={16} color={palette.ink900} />
       </Pressable>
+    </View>
+  );
+}
+
+function SplitVariantPicker({
+  label,
+  variants,
+  selectedId,
+  disabledId,
+  onPick,
+}: {
+  label: string;
+  variants: VariantRowT[];
+  selectedId: string | null;
+  disabledId: string | null;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <View style={{ gap: space.xs }}>
+      <Text variant="label">{label}</Text>
+      <View style={styles.splitChips}>
+        {variants.map((v) => {
+          const active = v.id === selectedId;
+          const disabled = !active && v.id === disabledId;
+          return (
+            <Pressable
+              key={v.id}
+              onPress={() => !disabled && onPick(v.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active, disabled }}
+              accessibilityLabel={`${label}: ${v.name}`}
+              style={({ pressed }) => [
+                styles.splitChip,
+                active && styles.splitChipActive,
+                disabled && styles.splitChipDisabled,
+                pressed && !disabled && { opacity: 0.85 },
+              ]}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: active ? fontWeight.bold : fontWeight.medium,
+                  color: active
+                    ? color.primaryOn
+                    : disabled
+                      ? color.textTertiary
+                      : color.textPrimary,
+                }}
+              >
+                {v.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -1440,6 +1652,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space.sm,
     paddingTop: space.md,
+  },
+  splitToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: color.border,
+    backgroundColor: color.surface,
+    marginBottom: space.sm,
+  },
+  splitToggleActive: {
+    borderColor: color.primary,
+    backgroundColor: palette.saffron50,
+  },
+  splitChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.xs,
+  },
+  splitChip: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: color.border,
+    backgroundColor: color.surface,
+  },
+  splitChipActive: {
+    backgroundColor: color.primary,
+    borderColor: color.primary,
+  },
+  splitChipDisabled: {
+    backgroundColor: color.surfaceAlt,
+    opacity: 0.6,
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: space.xs,
   },
 
   // Compact inline stepper used inside variant rows

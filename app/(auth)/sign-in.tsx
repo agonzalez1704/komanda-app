@@ -105,7 +105,14 @@ export default function SignIn() {
         <Link href="/(auth)/sign-up" asChild>
           <Pressable style={styles.link} accessibilityRole="link">
             <Text style={{ color: color.primary }}>
-              New here? Create an account or accept an invite
+              ¿Nuevo? Crea tu cuenta y organización
+            </Text>
+          </Pressable>
+        </Link>
+        <Link href="/invite/accept" asChild>
+          <Pressable style={styles.linkSecondary} accessibilityRole="link">
+            <Text style={{ color: color.textSecondary }}>
+              ¿Tienes un código de invitación?
             </Text>
           </Pressable>
         </Link>
@@ -149,5 +156,9 @@ const styles = StyleSheet.create({
   link: {
     alignSelf: 'center',
     marginTop: space.lg,
+  },
+  linkSecondary: {
+    alignSelf: 'center',
+    marginTop: space.sm,
   },
 });

@@ -11,6 +11,7 @@ export type MutationType =
   | 'update_item'
   | 'remove_item'
   | 'close_komanda'
+  | 'cancel_komanda'
   | 'upsert_product'
   | 'delete_product'
   | 'upsert_variant'

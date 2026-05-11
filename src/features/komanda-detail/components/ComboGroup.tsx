@@ -3,12 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui';
 import { formatMXN } from '@/domain/money';
 import { color, fontWeight, hitSlop, palette, radius, space } from '@/theme/tokens';
+import { formatVariantLabel } from '@/domain/variantLabel';
 
 export type ComboGroupChild = {
   id: string;
   quantity: number;
   product_name_snapshot: string;
   variant_name_snapshot: string | null;
+  variant_2_name_snapshot: string | null;
   modifiers?: { name_snapshot: string }[];
   note_text?: string | null;
 };
@@ -92,7 +94,9 @@ export function ComboGroup({
               <View style={{ flex: 1 }}>
                 <Text style={styles.childName} numberOfLines={2}>
                   {c.product_name_snapshot}
-                  {c.variant_name_snapshot ? ` · ${c.variant_name_snapshot}` : ''}
+                  {formatVariantLabel(c.variant_name_snapshot, c.variant_2_name_snapshot)
+                    ? ` · ${formatVariantLabel(c.variant_name_snapshot, c.variant_2_name_snapshot)}`
+                    : ''}
                 </Text>
                 {mods.length > 0 ? (
                   <Text style={styles.childSub} numberOfLines={2}>

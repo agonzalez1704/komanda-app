@@ -8,6 +8,7 @@ import { addItemHandler } from './addItem';
 import { updateItemHandler } from './updateItem';
 import { removeItemHandler } from './removeItem';
 import { closeKomandaHandler } from './closeKomanda';
+import { cancelKomandaHandler } from './cancelKomanda';
 import { upsertProductHandler } from './upsertProduct';
 import { deleteProductHandler } from './deleteProduct';
 import { upsertVariantHandler } from './upsertVariant';
@@ -29,6 +30,7 @@ export const handlers: HandlerRegistry = {
   update_item: updateItemHandler({ localStore, queueStore }),
   remove_item: removeItemHandler({ localStore, queueStore }),
   close_komanda: closeKomandaHandler({ localStore, queueStore }),
+  cancel_komanda: cancelKomandaHandler({ localStore, queueStore }),
   upsert_product: upsertProductHandler({ localStore }),
   delete_product: deleteProductHandler({ localStore }),
   upsert_variant: upsertVariantHandler({ localStore }),
