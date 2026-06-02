@@ -60,6 +60,9 @@ export const ProductRow = z.object({
   name: z.string(),
   category: z.string(),
   price_cents: z.number().int().nonnegative(),
+  // Nullable Uber Eats price override (migration 0018_margins_and_costs.sql).
+  // null/undefined => derive from price_cents × markup factor on the client.
+  uber_price_cents: z.number().int().nonnegative().nullable().optional(),
   active: z.boolean(),
   sort_order: z.number().int(),
   created_at: iso,
@@ -200,3 +203,57 @@ export type AuditPeriodRowT = z.infer<typeof AuditPeriodRow>;
 export type ExpenseCategoryRowT = z.infer<typeof ExpenseCategoryRow>;
 export type ExpensePaidByT = z.infer<typeof ExpensePaidBy>;
 export type ExpenseRowT = z.infer<typeof ExpenseRow>;
+
+// ---------------------------------------------------------------------------
+// Margins & Costs (migration 0018_margins_and_costs.sql) — admin-only.
+// ---------------------------------------------------------------------------
+
+export const IngredientUnit = z.enum(['g', 'ml', 'unit']);
+export type IngredientUnitT = z.infer<typeof IngredientUnit>;
+
+export const MarginAssumptionsRow = z.object({
+  org_id: uuid,
+  // numeric(6,4). PostgREST returns numerics as strings by default; the
+  // Insforge SDK in this project surfaces them as JS numbers, so we accept
+  // number here but coerce defensively for safety.
+  uber_commission_pct: z.coerce.number().min(0).max(1),
+  uber_iva_retention_pct: z.coerce.number().min(0).max(1),
+  markup_a: z.coerce.number().gt(1),
+  markup_b: z.coerce.number().gt(1),
+  updated_at: iso,
+});
+export type MarginAssumptionsRowT = z.infer<typeof MarginAssumptionsRow>;
+
+export const IngredientRow = z.object({
+  id: uuid,
+  org_id: uuid,
+  name: z.string(),
+  unit: IngredientUnit,
+  // numeric(12,4) — fractional cents allowed (e.g. tortilla = 2.2¢/g).
+  cost_cents_per_unit: z.coerce.number().nonnegative(),
+  active: z.boolean(),
+  created_at: iso,
+});
+export type IngredientRowT = z.infer<typeof IngredientRow>;
+
+export const ProductRecipeLineRow = z.object({
+  id: uuid,
+  org_id: uuid,
+  product_id: uuid,
+  ingredient_id: uuid,
+  quantity: z.coerce.number().positive(),
+  created_at: iso,
+});
+export type ProductRecipeLineRowT = z.infer<typeof ProductRecipeLineRow>;
+
+export const FixedCostRow = z.object({
+  id: uuid,
+  org_id: uuid,
+  label: z.string(),
+  daily_cents: z.number().int().nonnegative(),
+  notes: z.string().nullable().optional(),
+  active: z.boolean(),
+  sort_order: z.number().int(),
+  created_at: iso,
+});
+export type FixedCostRowT = z.infer<typeof FixedCostRow>;

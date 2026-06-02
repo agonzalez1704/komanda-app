@@ -23,6 +23,8 @@ export type StatsHeroProps =
       closedCount: number;
       activeCount: number;
       itemsSold: number;
+      /** 'shift' shows "Current shift's revenue", 'day' shows "Day's revenue". */
+      scope: 'shift' | 'day';
     }
   | {
       mode: 'shift';
@@ -92,13 +94,16 @@ export function StatsHeroCard(props: StatsHeroProps) {
 function RevenueHeader({
   dayRevenueCents,
   closedCount,
+  scope,
 }: {
   dayRevenueCents: number;
   closedCount: number;
+  scope: 'shift' | 'day';
 }) {
+  const label = scope === 'shift' ? "Current shift's revenue" : "Day's revenue";
   return (
     <>
-      <Text style={styles.eyebrow}>Today&rsquo;s revenue</Text>
+      <Text style={styles.eyebrow}>{label}</Text>
       <Text mono style={styles.money}>
         {formatMXN(dayRevenueCents)}
       </Text>

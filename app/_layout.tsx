@@ -4,8 +4,18 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import * as Notifications from 'expo-notifications';
 import 'react-native-reanimated';
+
+// Guarded require — module-eval-time `import * as Notifications` crashes the
+// whole tree in environments that lack the native module (Expo Go SDK 53+,
+// dev clients built before adding the dep). Lazy-fail to a noop instead.
+type NotificationsModule = typeof import('expo-notifications');
+let Notifications: NotificationsModule | null = null;
+try {
+  Notifications = require('expo-notifications') as NotificationsModule;
+} catch (e) {
+  console.warn('[root] expo-notifications unavailable', e);
+}
 import { QueryProvider } from '@/offline/QueryProvider';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useQueueDrain } from '@/offline/drain';
@@ -31,7 +41,7 @@ function NotificationsBoot() {
   // the app (cold-start) AND any subsequent taps. Replaces the older
   // getLastNotificationResponseAsync + addNotificationResponseReceivedListener
   // combo with a single reactive value.
-  const lastResponse = Notifications.useLastNotificationResponse();
+  const lastResponse = Notifications?.useLastNotificationResponse?.() ?? null;
 
   useEffect(() => {
     void configureNotifications();

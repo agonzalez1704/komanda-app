@@ -64,11 +64,13 @@ export default function AuditScreen() {
   const openKomandasCount = useQuery({
     queryKey: ['open-komanda-count', periodId],
     queryFn: async () => {
+      // Truly "still open" = not yet closed AND not cancelled. Cancelled
+      // rows are terminal; they shouldn't block close_day.
       const { count, error } = await insforge.database
         .from('komandas')
         .select('id', { count: 'exact', head: true })
         .eq('period_id', periodId!)
-        .neq('status', 'closed');
+        .not('status', 'in', '("closed","cancelled")');
       if (error) throw error;
       return count ?? 0;
     },

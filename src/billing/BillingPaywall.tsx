@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import { useQueryClient } from '@tanstack/react-query';
 import { color, fontSize, fontWeight, radius, space } from '@/theme/tokens';
-import { BILLING_URL, type OrgBilling } from '@/billing';
+import { type OrgBilling } from '@/billing';
+import { openCheckoutSession } from '@/billing/openCheckout';
 import type { SubscriptionStatusT } from '@/insforge/schemas';
 
 /**
@@ -30,6 +32,24 @@ export function BillingPaywall({
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
+  // The layout's membership query uses `staleTime: Infinity` + persisted
+  // cache, so without help it never notices the webhook flipping
+  // subscription_status to 'active'. Poll every 10s while the paywall is
+  // mounted, and refetch on app foreground — both invalidate the same
+  // ['membership'] key the layout reads from.
+  useEffect(() => {
+    const refresh = () => qc.invalidateQueries({ queryKey: ['membership'] });
+    refresh();
+    const interval = setInterval(refresh, 10_000);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [qc]);
+
   const headline =
     status === 'expired'
       ? 'Tu prueba terminó'
@@ -49,10 +69,11 @@ export function BillingPaywall({
   async function open() {
     setBusy(true);
     try {
-      await WebBrowser.openBrowserAsync(BILLING_URL, {
-        presentationStyle:
-          WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-      });
+      const result = await openCheckoutSession();
+      if (!result.ok) {
+        Alert.alert('Pago no disponible', 'No pudimos abrir el pago. Intenta de nuevo en un momento.');
+        return;
+      }
       // Refresh membership when the sheet closes — Stripe webhook may have
       // updated subscription_status while the user was paying.
       await qc.invalidateQueries({ queryKey: ['membership'] });

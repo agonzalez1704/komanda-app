@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { insforge } from '@/insforge/client';
 import { can, type Role } from '@/auth/permissions';
 import {
+  ensureNotificationPermission,
   notifyKomandaCreated,
   type KomandaCreatedPayload,
 } from '@/notifications';
@@ -32,17 +33,44 @@ export function useKomandaCreatedNotifications(args: {
     let cancelled = false;
     let detach: (() => void) | null = null;
 
-    function handleCreated(payload: unknown) {
-      const p = payload as KomandaCreatedPayload | undefined;
-      if (!p || typeof p.id !== 'string') return;
+    // Ask for permission up-front so the OS prompt fires before the first
+    // notification, not at the moment of the first event (which would
+    // suppress that first notification on a fresh install).
+    void ensureNotificationPermission().then((granted) => {
+      console.log('[komandaCreatedNotifs] permission', { granted });
+    });
+
+    function handleCreated(message: unknown) {
+      // Insforge SDK delivers a SocketMessage envelope: { meta, ...payload }
+      // (top-level passthrough). Older builds nested payload under .payload.
+      // Accept both shapes so we don't silently drop events.
+      const m = message as
+        | (KomandaCreatedPayload & { payload?: KomandaCreatedPayload })
+        | { payload: KomandaCreatedPayload }
+        | undefined;
+      const p: KomandaCreatedPayload | undefined =
+        m && 'id' in m && typeof (m as KomandaCreatedPayload).id === 'string'
+          ? (m as KomandaCreatedPayload)
+          : (m as { payload?: KomandaCreatedPayload } | undefined)?.payload;
+
+      if (!p || typeof p.id !== 'string') {
+        console.warn(
+          '[komandaCreatedNotifs] unrecognized payload shape',
+          message,
+        );
+        return;
+      }
       // Skip self — the creator already knows.
-      if (p.opened_by_auth_user_id === authUserId) return;
+      if (p.opened_by_auth_user_id === authUserId) {
+        return;
+      }
 
       // Refresh the today list cache so the new row appears even before
-      // the user navigates back to the list. The notification body comes
-      // from the realtime payload itself, no extra fetch needed.
+      // the user navigates back to the list.
+      qc.invalidateQueries({ queryKey: ['komandas', 'all'] });
       qc.invalidateQueries({ queryKey: ['komandas', 'today'] });
 
+      console.log('[komandaCreatedNotifs] firing local notification', p.id);
       void notifyKomandaCreated(p);
     }
 
@@ -61,6 +89,7 @@ export function useKomandaCreatedNotifications(args: {
         }
         insforge.realtime.on('created', handleCreated);
         detach = () => insforge.realtime.off('created', handleCreated);
+        console.log('[komandaCreatedNotifs] subscribed', channel);
       } catch (e) {
         console.warn('[komandaCreatedNotifs] connect failed', e);
       }
@@ -69,9 +98,6 @@ export function useKomandaCreatedNotifications(args: {
     return () => {
       cancelled = true;
       detach?.();
-      // Don't disconnect the socket here — other features may share it
-      // in the future, and the SDK keeps the channel sub alive only as
-      // long as we have a listener.
       insforge.realtime.unsubscribe(channel);
     };
   }, [orgId, authUserId, role, qc]);

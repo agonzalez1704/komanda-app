@@ -20,11 +20,22 @@ function isSameLocalDay(iso: string, day: Date): boolean {
   );
 }
 
+/**
+ * Totals for the stats card + filter bar.
+ *
+ *   all / active / closed: scoped to whatever the list is currently showing
+ *   (after dateFilter, before status filter).
+ *   dayClosed / dayRevenue / itemsSold: "shift revenue" — when a date is
+ *   selected, sum closed komandas on that calendar day; otherwise sum
+ *   closed komandas in the open period (period_id match), which is what we
+ *   want at 12:30 AM when the shift hasn't been reconciled yet.
+ */
 export function useKomandasTotals(
   komandas: KomandaRowT[],
   statsById: Map<string, KomandaStats>,
-  today: Date,
+  args: { openPeriodId: string | null; selectedDate: Date | null },
 ): KomandaTotals {
+  const { openPeriodId, selectedDate } = args;
   return useMemo(() => {
     const t: KomandaTotals = {
       all: 0,
@@ -38,9 +49,10 @@ export function useKomandasTotals(
       t.all += 1;
       if (k.status === 'closed') {
         t.closed += 1;
-        const closedToday =
-          k.closed_at != null && isSameLocalDay(k.closed_at, today);
-        if (closedToday) {
+        const inShift = selectedDate
+          ? k.closed_at != null && isSameLocalDay(k.closed_at, selectedDate)
+          : openPeriodId != null && k.period_id === openPeriodId;
+        if (inShift) {
           t.dayClosed += 1;
           t.dayRevenue += k.total_cents ?? 0;
           const s = statsById.get(k.id);
@@ -51,5 +63,5 @@ export function useKomandasTotals(
       }
     }
     return t;
-  }, [komandas, statsById, today]);
+  }, [komandas, statsById, openPeriodId, selectedDate]);
 }

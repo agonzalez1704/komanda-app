@@ -39,8 +39,13 @@ export default function Settings() {
   const showTeam = membership?.role === 'admin';
   const showAuditHistory = !!membership && can.viewAudit(membership.role);
   const showExpenseCategories = membership?.role === 'admin';
+  const showMargins = !!membership && can.viewMargins(membership.role);
   const showManagement =
-    showMenu || showTeam || showAuditHistory || showExpenseCategories;
+    showMenu ||
+    showTeam ||
+    showAuditHistory ||
+    showExpenseCategories ||
+    showMargins;
 
   return (
     <Screen scrollable padded={false} contentContainerStyle={{ gap: space.lg, paddingBottom: space.xxl }}>
@@ -120,6 +125,23 @@ export default function Settings() {
                     icon="pricetags-outline"
                     label="Expense categories"
                     hint="Manage categories"
+                  />
+                </Link>
+              </>
+            ) : null}
+            {showMargins ? (
+              <>
+                {showMenu ||
+                showTeam ||
+                showAuditHistory ||
+                showExpenseCategories ? (
+                  <Divider style={{ marginLeft: 52 }} />
+                ) : null}
+                <Link href={'/(app)/settings/margins' as any} asChild>
+                  <NavRow
+                    icon="analytics-outline"
+                    label="Margins & Costs"
+                    hint="Ingredient costs, margins, break-even"
                   />
                 </Link>
               </>

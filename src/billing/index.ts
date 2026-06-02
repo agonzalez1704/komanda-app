@@ -16,9 +16,6 @@ export type OrgBilling = {
   stripe_subscription_id?: string | null;
 };
 
-export const BILLING_URL =
-  process.env.EXPO_PUBLIC_BILLING_URL ?? 'https://komanda.app/billing';
-
 export function effectiveStatus(org: OrgBilling): SubscriptionStatusT {
   if (
     org.subscription_status === 'trialing' &&

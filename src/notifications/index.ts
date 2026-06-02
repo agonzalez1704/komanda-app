@@ -1,19 +1,31 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 
-/**
- * One-time setup for local notification handling. Call once at app boot.
- *
- * What this does:
- *   - Registers a notification handler so foreground notifications still
- *     surface as banners (default RN behavior is to suppress them).
- *   - Requests permission on iOS the first time we try to schedule one.
- *     Android grants by default but iOS requires explicit auth.
- *   - Creates an Android notification channel for komanda events so the
- *     OS can group + sound them appropriately.
- */
+// Native modules ship with the binary. When running in an environment that
+// doesn't have ExpoPushTokenManager linked (Expo Go on SDK 53+, dev client
+// built before adding the dep), the bare `import * as` would throw at
+// module-eval time and take the whole layout tree down with it. Guard so a
+// missing native module degrades to a no-op instead of breaking boot.
+type NotificationsModule = typeof import('expo-notifications');
+type DeviceModule = typeof import('expo-device');
+
+let Notifications: NotificationsModule | null = null;
+let Device: DeviceModule | null = null;
+try {
+  Notifications = require('expo-notifications') as NotificationsModule;
+} catch (e) {
+  console.warn('[notifications] expo-notifications unavailable, disabling', e);
+}
+try {
+  Device = require('expo-device') as DeviceModule;
+} catch (e) {
+  console.warn('[notifications] expo-device unavailable, disabling', e);
+}
+
+const isAvailable = (): boolean => Notifications !== null;
+
 export async function configureNotifications(): Promise<void> {
+  if (!Notifications) return;
+
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -35,13 +47,9 @@ export async function configureNotifications(): Promise<void> {
   }
 }
 
-/**
- * Request notification permission lazily — call before scheduling. We don't
- * spam the prompt at startup; instead trigger it the first time we'd
- * actually want to fire a notification.
- */
 export async function ensureNotificationPermission(): Promise<boolean> {
-  if (!Device.isDevice) return false; // simulators don't deliver
+  if (!Notifications || !Device) return false;
+  if (!Device.isDevice) return false;
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
   if (existing === 'denied') return false;
@@ -58,14 +66,18 @@ export type KomandaCreatedPayload = {
   opened_at: string;
 };
 
-/**
- * Schedule an immediate local notification for a newly created komanda.
- * Tap navigates to the detail screen via the data.komanda_id field —
- * RootLayout's response handler reads it and routes there.
- */
 export async function notifyKomandaCreated(p: KomandaCreatedPayload): Promise<void> {
+  if (!Notifications) {
+    console.warn('[notifyKomandaCreated] native module unavailable — rebuild dev client');
+    return;
+  }
   const granted = await ensureNotificationPermission();
-  if (!granted) return;
+  if (!granted) {
+    console.warn('[notifyKomandaCreated] permission not granted, skipping', {
+      isDevice: Device?.isDevice,
+    });
+    return;
+  }
 
   const titleParts = [
     'Nueva komanda',
@@ -75,14 +87,21 @@ export async function notifyKomandaCreated(p: KomandaCreatedPayload): Promise<vo
     ? `${p.display_name} acaba de abrir una orden`
     : 'Un mesero abrió una orden nueva';
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: titleParts.join(' '),
-      body,
-      sound: 'default',
-      data: { komanda_id: p.id, kind: 'komanda_created' },
-    },
-    trigger: null, // fire immediately
-    ...(Platform.OS === 'android' ? { channelId: 'komandas' } : {}),
-  });
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: titleParts.join(' '),
+        body,
+        sound: 'default',
+        data: { komanda_id: p.id, kind: 'komanda_created' },
+      },
+      trigger: null,
+      ...(Platform.OS === 'android' ? { channelId: 'komandas' } : {}),
+    });
+    console.log('[notifyKomandaCreated] scheduled', p.id);
+  } catch (e) {
+    console.warn('[notifyKomandaCreated] schedule failed', e);
+  }
 }
+
+export const notificationsAvailable = isAvailable;

@@ -11,6 +11,7 @@ describe('permissions matrix', () => {
     viewAudit:       { admin: true,  cashier: true,  waiter: false, cook: false },
     inviteUsers:     { admin: true,  cashier: false, waiter: false, cook: false },
     viewKitchen:     { admin: true,  cashier: false, waiter: false, cook: true  },
+    viewMargins:     { admin: true,  cashier: false, waiter: false, cook: false },
     receivesKomandaCreatedNotif:
                      { admin: true,  cashier: true,  waiter: false, cook: true  },
   };

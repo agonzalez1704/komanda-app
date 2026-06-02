@@ -1,13 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color, fontWeight, radius, space } from '@/theme/tokens';
 import {
-  BILLING_URL,
   daysRemaining,
   type OrgBilling,
   shouldShowTrialBanner,
 } from '@/billing';
+import { openCheckoutSession } from '@/billing/openCheckout';
 
 /**
  * Thin top-bar shown over the app stack when the trial is winding down or
@@ -16,6 +16,7 @@ import {
  */
 export function BillingBanner({ org }: { org: OrgBilling }) {
   const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
   const status = org.subscription_status;
   const isPastDue = status === 'past_due';
   const showTrial = shouldShowTrialBanner(org);
@@ -36,10 +37,12 @@ export function BillingBanner({ org }: { org: OrgBilling }) {
 
   async function open() {
     try {
-      await WebBrowser.openBrowserAsync(BILLING_URL, {
-        presentationStyle:
-          WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-      });
+      const result = await openCheckoutSession();
+      if (result.ok) {
+        // Refresh membership when the sheet closes — webhook may have
+        // flipped subscription_status while the user was paying.
+        await qc.invalidateQueries({ queryKey: ['membership'] });
+      }
     } catch {
       // Non-fatal — user can retry.
     }

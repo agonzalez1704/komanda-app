@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { EmptyState, Screen, Text } from '@/components/ui';
 import { StuckMutationsBanner } from '@/components/StuckMutationsBanner';
+import { DateFilterSheet } from '@/features/komandas-list/components/DateFilterSheet';
 import { FilterBar } from '@/features/komandas-list/components/FilterBar';
 import { KomandaListItem } from '@/features/komandas-list/components/KomandaListItem';
 import { NewKomandaFab } from '@/features/komandas-list/components/NewKomandaFab';
@@ -13,6 +14,7 @@ import { TopBar } from '@/features/komandas-list/components/TopBar';
 import { useKomandasData } from '@/features/komandas-list/hooks/useKomandasData';
 import { useKomandasFilter } from '@/features/komandas-list/hooks/useKomandasFilter';
 import { useKomandasTotals } from '@/features/komandas-list/hooks/useKomandasTotals';
+import { useOpenPeriod } from '@/features/komandas-list/hooks/useOpenPeriod';
 import { useWaiterStats } from '@/features/komandas-list/hooks/useWaiterStats';
 import { usePullRefresh } from '@/features/komandas-list/hooks/usePullRefresh';
 import {
@@ -29,6 +31,7 @@ import { color, fontWeight, space } from '@/theme/tokens';
 export default function KomandasList() {
   const router = useRouter();
   const today = useMemo(() => new Date(), []);
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
 
   // Route guard: cooks have no working komanda surface yet — bounce them to
   // Settings, the only place currently usable for that role. The (app)
@@ -39,6 +42,10 @@ export default function KomandasList() {
     queryFn: fetchMyMembership,
   });
 
+  const orgId = me?.organization?.id ?? null;
+  const { period: openPeriod } = useOpenPeriod(orgId);
+  const openPeriodId = openPeriod?.id ?? null;
+
   const { komandas, isLoading, refetch, statsById } = useKomandasData();
   const { refreshing, onRefresh } = usePullRefresh(refetch);
   const {
@@ -48,15 +55,41 @@ export default function KomandasList() {
     setSearch,
     searchOpen,
     toggleSearch,
+    selectedDate,
+    setSelectedDate,
     filtered,
-  } = useKomandasFilter(komandas);
-  const totals = useKomandasTotals(komandas, statsById, today);
-  const waiterStats = useWaiterStats(komandas, statsById, today, me?.auth_user_id ?? null);
-  const dateLabel = useMemo(() => formatDateLong(today), [today]);
+  } = useKomandasFilter(komandas, { openPeriodId });
+  const totals = useKomandasTotals(komandas, statsById, {
+    openPeriodId,
+    selectedDate,
+  });
+  const waiterStats = useWaiterStats(
+    komandas,
+    statsById,
+    { openPeriodId, selectedDate, now: today },
+    me?.auth_user_id ?? null,
+  );
 
+  // Header label tracks the active scope: specific date when filtering,
+  // otherwise the open period's start date (NOT clock today — keeps the
+  // header honest on a past-midnight shift).
+  const dateLabel = useMemo(() => {
+    if (selectedDate) return formatDateLong(selectedDate);
+    if (openPeriod?.opened_at) return formatDateLong(new Date(openPeriod.opened_at));
+    return formatDateLong(today);
+  }, [selectedDate, openPeriod, today]);
+
+  // Section grouping — when no specific date is picked, collapse all
+  // open-period komandas into a "Current shift" header so they stay
+  // together across midnight.
   const sections = useMemo(
-    () => groupKomandasByDay(filtered, today),
-    [filtered, today],
+    () =>
+      groupKomandasByDay(
+        filtered,
+        today,
+        selectedDate ? null : openPeriodId,
+      ),
+    [filtered, today, openPeriodId, selectedDate],
   );
 
   if (me && !can.workKomanda(me.role)) {
@@ -84,6 +117,8 @@ export default function KomandasList() {
     <Screen padded={false} edges={['top']} floatingFooter>
       <TopBar
         dateLabel={dateLabel}
+        dateFiltered={selectedDate != null}
+        onPressDate={() => setDateSheetOpen(true)}
         searchOpen={searchOpen}
         onToggleSearch={toggleSearch}
         onOpenSettings={() => router.push('/(app)/settings')}
@@ -101,6 +136,7 @@ export default function KomandasList() {
       {showSummary ? (
         <StatsHeroCard
           mode="revenue"
+          scope={selectedDate ? 'day' : 'shift'}
           dayRevenueCents={totals.dayRevenue}
           closedCount={totals.dayClosed}
           activeCount={totals.active}
@@ -160,6 +196,13 @@ export default function KomandasList() {
       )}
 
       <NewKomandaFab onPress={() => router.push('/(app)/komandas/new')} />
+
+      <DateFilterSheet
+        visible={dateSheetOpen}
+        initial={selectedDate}
+        onClose={() => setDateSheetOpen(false)}
+        onSelect={setSelectedDate}
+      />
     </Screen>
   );
 }

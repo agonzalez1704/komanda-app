@@ -18,12 +18,19 @@ function isSameLocalDay(iso: string, day: Date): boolean {
   );
 }
 
+/**
+ * Waiter-mode hero card stats. closedToday / itemsAddedToday now scope to
+ * either the open audit period (default) or a specific selected calendar
+ * day — same shift-aware logic as useKomandasTotals so the card doesn't
+ * zero-out at midnight on a long shift.
+ */
 export function useWaiterStats(
   komandas: KomandaRowT[],
   statsById: Map<string, KomandaStats>,
-  today: Date,
+  args: { openPeriodId: string | null; selectedDate: Date | null; now: Date },
   authUserId: string | null,
 ): WaiterStats {
+  const { openPeriodId, selectedDate, now } = args;
   return useMemo(() => {
     const t: WaiterStats = {
       activeMine: 0,
@@ -32,12 +39,15 @@ export function useWaiterStats(
       itemsAddedToday: 0,
     };
     if (!authUserId) return t;
-    const now = today.getTime();
+    const nowMs = now.getTime();
 
     for (const k of komandas) {
       if (k.opened_by_auth_user_id !== authUserId) continue;
       if (k.status === 'closed') {
-        if (k.closed_at && isSameLocalDay(k.closed_at, today)) {
+        const inShift = selectedDate
+          ? k.closed_at != null && isSameLocalDay(k.closed_at, selectedDate)
+          : openPeriodId != null && k.period_id === openPeriodId;
+        if (inShift) {
           t.closedToday += 1;
           const s = statsById.get(k.id);
           if (s) t.itemsAddedToday += s.count;
@@ -45,12 +55,12 @@ export function useWaiterStats(
       } else {
         t.activeMine += 1;
         const openedMs = new Date(k.opened_at).getTime();
-        const age = now - openedMs;
+        const age = nowMs - openedMs;
         if (age > 0 && (t.oldestOpenAgeMs == null || age > t.oldestOpenAgeMs)) {
           t.oldestOpenAgeMs = age;
         }
       }
     }
     return t;
-  }, [komandas, statsById, today, authUserId]);
+  }, [komandas, statsById, openPeriodId, selectedDate, now, authUserId]);
 }
